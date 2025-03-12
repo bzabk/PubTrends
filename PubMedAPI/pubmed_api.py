@@ -20,35 +20,49 @@ class PubMedAPI:
         self.session = requests.Session()
         self.df = pd.DataFrame(columns=["Original_PMID","Related_PMID","Title","Summary","Overall_design","Experiment_type",
                                         "Organism"])
+        self.rows_data = []
 
     def create_dataframe(self) -> None:
-        with open('PMIDs_list.txt','r') as f:
-            for line in f:
-                related_pmds = self._get_related_pmids(int(line))
-                for pmid in related_pmds:
 
-                    pm_data = self._get_info(pmid)
-                    overall_design = self._get_overall_design(pm_data.GSE_code)
-                    self.df = pd.concat([self.df, pd.DataFrame([{"Original_PMID": line, "Related_PMID": pmid, "Title": pm_data.Title,
-                                                 "Summary": pm_data.Summary, "Overall_design": overall_design,
-                                                 "Experiment_type": pm_data.Experiment_type,
-                                                 "Organism": pm_data.Organism}])], ignore_index=True)
+        self._load_pmids_from_file()
 
-        self.df.to_csv("PubMed_data.csv",index=False)
+        for pubmed_idx in self.pmids:
+            related_pmds = self._get_related_pmids(int(pubmed_idx))
+            print(pubmed_idx)
+            for pmid in related_pmds:
+
+                pm_data = self._get_info(pmid)
+                overall_design = self._get_overall_design(pm_data.GSE_code)
+
+                row_dict = {
+                    "Original_PMID": pubmed_idx,
+                    "Related_PMID": pmid,
+                    "GSE_code": pm_data.GSE_code,
+                    "Title": pm_data.Title,
+                    "Summary": pm_data.Summary,
+                    "Overall_design": overall_design,
+                    "Experiment_type": pm_data.Experiment_type,
+                    "Organism": pm_data.Organism
+                }
+
+                self.rows_data.append(row_dict)
+
+        self.df = pd.DataFrame(self.rows_data)
+        self.df.to_csv("PubMed_data.csv", index=False)
 
     def _load_pmids_from_file(self) -> list[int]:
-        pmids = []
+        self.pmids = []
         try:
             with open('PMIDs_list.txt','r') as f:
 
                 for line in f:
                     line = line.strip()
-                    if line.isdigit():
-                        pmids.append(int(line))
+                    if line.isdigit() and int(line) not in self.pmids:
+                        self.pmids.append(int(line))
         except FileNotFoundError:
             raise
 
-        return pmids
+
 
     def _get_related_pmids(self, pmid: int) -> list[int]:
         base_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi"
