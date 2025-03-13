@@ -1,19 +1,10 @@
-header.stAppHeader {
-    background: rgba(0, 0, 0, 0);
+[data-testid="stSidebar"] {
+    width: 350px;
+    min-width: 350px;
+    max-width: 350px;
 }
 
-div.stMainBlockContainer {
-    padding-top: 0.2rem;
-}
-
-div.st-key-app_title div.stHeading {
+.stTabs [role="tab"] {
     text-align: center;
-}
-
-div.st-key-app_title div.stHeading h1 {
-    font-family: Arial;
-}
-
-[data-testid="stSidebar"] h1{
-    margin-top: -10px;
+    width: 100%;
 }
