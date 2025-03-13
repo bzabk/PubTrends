@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from logging import raiseExceptions
 
 import pandas as pd
 import requests
@@ -130,6 +129,3 @@ class PubMedAPI:
     def _save_to_csv(self,df: pd.DataFrame):
         df.to_csv("PubMed_data.csv",index=False)
 
-
-pubmed = PubMedAPI()
-pubmed.create_dataframe()
