@@ -1,0 +1,10 @@
+[data-testid="stSidebar"] {
+    width: 350px;
+    min-width: 350px;
+    max-width: 350px;
+}
+
+.stTabs [role="tab"] {
+    text-align: center;
+    width: 100%;
+}
