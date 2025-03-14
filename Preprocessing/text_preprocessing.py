@@ -2,7 +2,7 @@ import string
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import Pipeline
-from sklearn.cluster import DBSCAN
+from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
 
 
@@ -24,35 +24,66 @@ class RemovePunctuationTransformer(BaseEstimator, TransformerMixin):
 
 class TextPipeline:
 
-    def __init__(self):
+    def __init__(self,n_clusters=8,max_features=100):
         self.pipeline = Pipeline()
-        self.cluster = DBSCAN(eps=0.5, min_samples=10)
+        self.cluster = KMeans(n_clusters=n_clusters)
         self.punctuation_remover = RemovePunctuationTransformer()
-        self.vectorizer = TfidfVectorizer(max_features=100, stop_words='english', min_df=2)
-        self.tsne = TSNE(n_components=3)
+        self.vectorizer = TfidfVectorizer(max_features=max_features, stop_words='english', min_df=2)
+        self.tsne_reduction = TSNE(n_components=3)
 
-        self.pipeline = Pipeline([
+        self.text_pipeline = Pipeline([
             ('remove_punctuation', self.punctuation_remover),
-            ('vectorizer', self.vectorizer),
-            ('clusterting',self.cluster),
-            ('dimensionality_reduction', self.tsne)
+            ('vectorizer', self.vectorizer)
+        ])
+        self.text_cluster_pipeline = Pipeline([
+            ('text_pipeline', self.text_pipeline),
+            ('cluster', self.cluster)
+        ])
+        self.tsne_pipeline = Pipeline([
+            ('dimensionality_reduction',self.text_pipeline),
+            ('tsne', self.tsne_reduction)
         ])
 
-        self.is_fitted = False
+        self.is_fitted_text_pipeline = False
+        self.is_fitted_text_cluster_pipeline = False
+        self.is_fitted_tsne_pipeline = False
 
-    def fit(self, X, y=None):
-        self.pipeline.fit(X)
-        self.is_fitted = True
+    def fit_text_pipeline(self,X):
+        self.is_fitted_text_pipeline = True
+        self.text_pipeline.fit(X)
+        return self
+    def fit_text_cluster_pipeline(self,X):
+        self.is_fitted_text_cluster_pipeline = True
+        self.text_cluster_pipeline.fit(X)
+        return self
+    def fit_tsne_pipeline(self,X):
+        self.is_fitted_tsne_pipeline = True
+        self.tsne_pipeline.fit(X)
+        return self
 
-    def transform(self, X):
-        if self.is_fitted == False:
+    def transform_text_pipeline(self,X):
+        if not self.is_fitted_text_pipeline:
             raise ValueError("Pipeline not fitted")
-        return self.pipeline.transform(X)
+        return self.text_pipeline.transform(X)
 
-    def get_cluster_labels(self):
-        if not self.is_fitted:
+    def transform_text_cluster_pipeline(self,X):
+        if not self.is_fitted_text_cluster_pipeline:
             raise ValueError("Pipeline not fitted")
-        return self.cluster.labels_
+        return self.text_cluster_pipeline.transform(X)
+
+    def transform_tsne_pipeline(self,X):
+        if not self.is_fitted_tsne_pipeline:
+            raise ValueError("Pipeline not fitted")
+        return self.tsne_pipeline.transform(X)
+
+    def fit_transform_text_pipeline(self,X):
+        return self.fit_text_pipeline(X).transform_text_pipeline(X)
+
+    def fit_transform_text_cluster_pipeline(self,X):
+        return self.fit_text_cluster_pipeline(X).transform_text_cluster_pipeline(X)
+
+    def fit_transform_tsne_pipeline(self,X):
+        return self.fit_tsne_pipeline(X).transform_tsne_pipeline(X)
 
 
 
