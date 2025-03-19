@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import pandas as pd
 import requests
 import xmltodict
-
+from time import time,sleep
 
 class PubMedAPI:
 
@@ -21,15 +21,17 @@ class PubMedAPI:
                                         "Organism"])
         self.rows_data = []
 
-    def create_dataframe(self) -> None:
-
-        self._load_pmids_from_file()
-
+    def create_dataframe(self,is_from_file: bool,list_of_pmids=None) -> None:
+        if is_from_file:
+            self._load_pmids_from_file()
+        else:
+            self._load_pmids_from_user(list_of_pmids=list_of_pmids)
+        print("XD")
         for pubmed_idx in self.pmids:
             related_pmds = self._get_related_pmids(int(pubmed_idx))
-            print(pubmed_idx)
+            print(related_pmds)
             for pmid in related_pmds:
-
+                print(pmid)
                 pm_data = self._get_info(pmid)
                 overall_design = self._get_overall_design(pm_data.GSE_code)
 
@@ -45,9 +47,9 @@ class PubMedAPI:
                 }
 
                 self.rows_data.append(row_dict)
-
+            sleep(1)
         self.df = pd.DataFrame(self.rows_data)
-        self.df.to_csv("PubMed_data.csv", index=False)
+        #self.df.to_csv("PubMed_data.csv", index=False)
 
     def _load_pmids_from_file(self) -> list[int]:
         self.pmids = []
@@ -60,6 +62,10 @@ class PubMedAPI:
                         self.pmids.append(int(line))
         except FileNotFoundError:
             raise
+
+    def _load_pmids_from_user(self,list_of_pmids: list[int]) -> list[int]:
+        self.pmids = list_of_pmids
+
 
 
 
@@ -106,6 +112,7 @@ class PubMedAPI:
             )
             return pm_data
         except:
+            print("Failed")
             return None
 
     def _get_overall_design(self,gse_code : str) -> str:
