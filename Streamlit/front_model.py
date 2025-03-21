@@ -16,7 +16,6 @@ class MainApp:
         self.pubmed_api = PubMedAPI()
         self.sucess_flag = False
 
-
         self.current_X = None
         self.current_labels = None
 
@@ -46,6 +45,16 @@ class MainApp:
             if self.sucess_flag:
                 self.load_3d_plot()
                 self.sucess_flag = False
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.selectbox("Original PMID", self.prepared_pubmed_dataframe["Original_PMID"].unique(), key="original_pmid", index=0)
+                with col2:
+                    st.selectbox("Organism", self.prepared_pubmed_dataframe["Organism"].unique())
+                with col3:
+                    st.selectbox("Experiment type", self.prepared_pubmed_dataframe["Experiment_type"].unique())
+
+
+
 
         with tab_info:
             pass
@@ -78,7 +87,7 @@ class MainApp:
         self.load_user_data()
         self.set_dataframe_from_pmids(self.pubmed_api.pmids)
         self.preprocess_raw_text()
-        self.sucess_flag = Trueq
+        self.sucess_flag = True
 
     def set_dataframe_from_pmids(self,list_of_pmids):
         self.pubmed_api.pmids = list_of_pmids
@@ -88,7 +97,7 @@ class MainApp:
     # ----------------------------------- Preprocessing -----------------------------------
     def preprocess_raw_text(self):
         self.prepared_pubmed_dataframe["Text"] = self.prepared_pubmed_dataframe[["Title","Summary","Overall_design","Experiment_type","Organism"]].apply(lambda x: ' '.join(x),axis=1)
-
+        self.prepared_pubmed_dataframe["Experiment_type"] = self.prepared_pubmed_dataframe["Experiment_type"].apply(lambda x: self.remove_duplicated_experiment_type(x))
         X = self.text_pipeline.fit_transform_text_processing_pipeline(self.prepared_pubmed_dataframe["Text"]).toarray()
 
         self.text_pipeline.fit_kmeans(X)
@@ -97,14 +106,24 @@ class MainApp:
 
     # ----------------------------------- Visualization -----------------------------------
     def load_3d_plot(self):
+        self.prepared_pubmed_dataframe["Formatted_Title"] = self.prepared_pubmed_dataframe["Title"].apply(lambda x: self.format_title(x))
         fig = px.scatter_3d(
             x = self.current_X[:,0],
             y = self.current_X[:,1],
             z = self.current_X[:,2],
             color = self.current_labels,
             size_max=3,
-            category_orders={"color": np.unique(self.current_labels)}
+            category_orders={"color": np.unique(self.current_labels)},
+            hover_data={
+                'Gse_code': self.prepared_pubmed_dataframe["GSE_code"],
+                'Original_PMID': self.prepared_pubmed_dataframe["Original_PMID"],
+                'Title': self.prepared_pubmed_dataframe["Formatted_Title"],
+                'Organism': self.prepared_pubmed_dataframe["Organism"]
+            }
         )
+
+        fig.update_traces(hovertemplate='<b>%{customdata[2]}</b><br>GSE Code: %{customdata[0]}<br>PMID: %{customdata[1]}<br>Organism: %{customdata[3]}',
+                          hoverlabel=dict(align='left'))
         fig.update_layout(scene=dict(
             xaxis_title='X',
             yaxis_title='Y',
@@ -118,6 +137,29 @@ class MainApp:
         css_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'Static', 'style.css'))
         with open(css_path) as css:
             st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
+
+    @staticmethod
+    def format_title(text: str) -> str:
+        words = text.split()
+        new_text = ""
+        for i in range(0,len(text),5):
+            new_text += ' '.join(words[i:i+5]) + "\n"
+        return new_text.strip()
+
+    @staticmethod
+    def remove_duplicated_experiment_type(text: str) -> str:
+        text = text.split(";")
+        text = [t.strip() for t in text]
+        text.sort()
+        if "Other" in text:
+            text.remove("Other")
+        text = [t for t in text if t.strip() != "Other"]
+        new_text = ";".join(text)
+        return new_text
+
+    @staticmethod
+    def remove_duplicated_pmids_from_user_list(pmids: list[int]) -> list[int]:
+        return list(set(pmids))
 
 if __name__ == "__main__":
     app = MainApp()
