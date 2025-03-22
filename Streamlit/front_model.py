@@ -50,23 +50,16 @@ class MainApp:
         with tab_visualization:
             if st.session_state.success_flag:
                 plot_placeholder = st.empty()
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3,col4 = st.columns(4)
+                plot_placeholder.empty()
+                plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"),key="xd")
                 with col1:
                     p1 = st.selectbox(
                         "Original PMID",
                         ["<select>"] + st.session_state.prepared_pubmed_dataframe["Original_PMID"].unique().tolist(),
                         key="Original_PMID"
                     )
-                    if p1 != "<select>":
-                        st.session_state.prepared_pubmed_dataframe["is_selected"] = st.session_state.prepared_pubmed_dataframe["Original_PMID"].apply(
-                            lambda x: 1 if x == p1 else 0
-                        )
-                    else:
-                        st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
-                    plot_placeholder.empty()
-                    plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"))
                 with col2:
-
                     p2 = st.selectbox(
                         "Organism",
                         ["<select>"] + st.session_state.prepared_pubmed_dataframe["Organism"].unique().tolist(),
@@ -78,7 +71,26 @@ class MainApp:
                         ["<select>"] + st.session_state.prepared_pubmed_dataframe["Experiment_type"].unique().tolist(),
                         key="Experiment_type"
                     )
+                with col4:
+                    if st.button("Filter"):
+                        selected_original_pmid = st.session_state["Original_PMID"]
+                        selected_organism = st.session_state["Organism"]
+                        selected_experiment_type = st.session_state["Experiment_type"]
 
+                        conditions = []
+                        if selected_original_pmid != "<select>":
+                            conditions.append(st.session_state.prepared_pubmed_dataframe["Original_PMID"] == selected_original_pmid)
+                        if selected_organism != "<select>":
+                            conditions.append(st.session_state.prepared_pubmed_dataframe["Organism"] == selected_organism)
+                        if selected_experiment_type != "<select>":
+                            conditions.append(st.session_state.prepared_pubmed_dataframe["Experiment_type"] == selected_experiment_type)
+                        if conditions:
+                            st.session_state.prepared_pubmed_dataframe["is_selected"] = np.logical_or.reduce(conditions).astype(int)
+                        else:
+                            st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
+
+                        plot_placeholder.empty()
+                        plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"),key="3d_plot_selected")
 
         with tab_info:
             st.write("Additional information can be displayed here.")
@@ -219,6 +231,21 @@ class MainApp:
 
         return fig
 
+    def set_colors_and_opacity(self, alpha=1.0) -> list[str]:
+        unique_labels = np.unique(st.session_state.current_labels)
+        color_palette = px.colors.qualitative.Plotly[:len(unique_labels)]
+        map_dict = dict(zip(unique_labels, color_palette))
+        list_of_colors = [map_dict[label] for label in st.session_state.current_labels]
+        idx = 0
+        color_palette_final = []
+        for col in list_of_colors:
+            if st.session_state.prepared_pubmed_dataframe["is_selected"].iloc[idx] == 1:
+                color_palette_final.append(self.hex_to_rgba(col, alpha=1))
+            else:
+                color_palette_final.append(self.hex_to_rgba(col, alpha=0.2))
+            idx += 1
+        return color_palette_final
+
     @staticmethod
     def load_styles() -> None:
         css_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'Static', 'style.css'))
@@ -239,22 +266,6 @@ class MainApp:
     @staticmethod
     def remove_duplicated_pmids_from_user_list(pmids: list[int]) -> list[int]:
         return list(set(pmids))
-
-    def set_colors_and_opacity(self, alpha=1.0) -> list[str]:
-        unique_labels = np.unique(st.session_state.current_labels)
-        color_palette = px.colors.qualitative.Plotly[:len(unique_labels)]
-        map_dict = dict(zip(unique_labels, color_palette))
-        print(st.session_state.current_labels)
-        list_of_colors = [map_dict[label] for label in st.session_state.current_labels]
-        idx = 0
-        color_palette_final = []
-        for col in list_of_colors:
-            if st.session_state.prepared_pubmed_dataframe["is_selected"].iloc[idx] == 1:
-                color_palette_final.append(self.hex_to_rgba(col, alpha=1))
-            else:
-                color_palette_final.append(self.hex_to_rgba(col, alpha=0.2))
-            idx += 1
-        return color_palette_final
 
     @staticmethod
     def hex_to_rgba(hex_color, alpha):
