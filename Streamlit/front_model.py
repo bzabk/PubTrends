@@ -45,14 +45,16 @@ class MainApp:
         with st.container(key="app_title"):
             st.title("PubTrends: Data Insights for Enhanced Paper Relevance")
 
+
+
     def prepare_tabs(self):
         tab_visualization, tab_info = st.tabs(["Visualization", "Info"])
         with tab_visualization:
             if st.session_state.success_flag:
                 plot_placeholder = st.empty()
-                col1, col2, col3,col4 = st.columns(4)
                 plot_placeholder.empty()
-                plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"),key="xd")
+                plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"),key="3d_plot_selected")
+                col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     p1 = st.selectbox(
                         "Original PMID",
@@ -85,12 +87,12 @@ class MainApp:
                         if selected_experiment_type != "<select>":
                             conditions.append(st.session_state.prepared_pubmed_dataframe["Experiment_type"] == selected_experiment_type)
                         if conditions:
-                            st.session_state.prepared_pubmed_dataframe["is_selected"] = np.logical_or.reduce(conditions).astype(int)
+                            st.session_state.prepared_pubmed_dataframe["is_selected"] = np.logical_and.reduce(conditions).astype(int)
                         else:
                             st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
 
                         plot_placeholder.empty()
-                        plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"),key="3d_plot_selected")
+                        plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"),key="3d_plot_filtered")
 
         with tab_info:
             st.write("Additional information can be displayed here.")
@@ -122,6 +124,7 @@ class MainApp:
             line = line.replace(" ", "")
             if line.isdigit():
                 list_of_pmids.append(int(line))
+        list_of_pmids = self.remove_duplicated_pmids_from_user_list(list_of_pmids)
         return list_of_pmids
 
     def load_user_data(self):
@@ -210,7 +213,7 @@ class MainApp:
             marker=dict(
                 color=st.session_state.prepared_pubmed_dataframe["colors"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
                 size=8,
-                opacity=0.15
+                opacity=0.1
             ),
             hovertext=hover_text_not_selected,
             hoverinfo='text',

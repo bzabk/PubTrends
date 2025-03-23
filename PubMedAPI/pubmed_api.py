@@ -26,12 +26,9 @@ class PubMedAPI:
             self._load_pmids_from_file()
         else:
             self._load_pmids_from_user(list_of_pmids=list_of_pmids)
-        print("XD")
         for pubmed_idx in self.pmids:
             related_pmds = self._get_related_pmids(int(pubmed_idx))
-            print(related_pmds)
             for pmid in related_pmds:
-                print(pmid)
                 pm_data = self._get_info(pmid)
                 overall_design = self._get_overall_design(pm_data.GSE_code)
 
@@ -112,7 +109,6 @@ class PubMedAPI:
             )
             return pm_data
         except:
-            print("Failed")
             return None
 
     def _get_overall_design(self,gse_code : str) -> str:
@@ -136,3 +132,7 @@ class PubMedAPI:
     def _save_to_csv(self,df: pd.DataFrame):
         df.to_csv("PubMed_data.csv",index=False)
 
+if __name__ == "__main__":
+    api = PubMedAPI()
+    api.create_dataframe(is_from_file=True)
+    print(api.df.head())
