@@ -3,7 +3,10 @@ from dataclasses import dataclass
 import pandas as pd
 import requests
 import xmltodict
-from time import time,sleep
+from time import sleep
+from bs4 import BeautifulSoup
+import time
+
 
 class PubMedAPI:
 
@@ -14,6 +17,12 @@ class PubMedAPI:
         Organism: str
         Experiment_type: str
         GSE_code: str
+        Overall_design: str = None
+
+        def __str__(self):
+            return f"Title: {self.Title}\nSummary: {self.Summary}\nOrganism: {self.Organism}\nExperiment_type: {self.Experiment_type}\nGSE_code: {self.GSE_code}\nOverall_design: {self.Overall_design}"
+            
+
 
     def __init__(self):
         self.session = requests.Session()
@@ -31,7 +40,6 @@ class PubMedAPI:
             for pmid in related_pmds:
                 pm_data = self._get_info(pmid)
                 overall_design = self._get_overall_design(pm_data.GSE_code)
-
                 row_dict = {
                     "Original_PMID": pubmed_idx,
                     "Related_PMID": pmid,
@@ -62,9 +70,6 @@ class PubMedAPI:
 
     def _load_pmids_from_user(self,list_of_pmids: list[int]) -> list[int]:
         self.pmids = list_of_pmids
-
-
-
 
     def _get_related_pmids(self, pmid: int) -> list[int]:
         base_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi"
@@ -132,7 +137,64 @@ class PubMedAPI:
     def _save_to_csv(self,df: pd.DataFrame):
         df.to_csv("PubMed_data.csv",index=False)
 
+    def get_gse_from_website(self, uid: int) -> str:
+        base_url = f"https://pubmed.ncbi.nlm.nih.gov/{uid}/"
+        response = self.session.get(base_url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+        button = soup.find('button', {'class': 'supplemental-data-actions-trigger'})
+        if button:
+            gse_code = button.get('aria-controls').split('-')[-1]
+            return gse_code
+        return None
+
+    def get_info_from_pmid(self, gse_code: str) -> PmData:
+        base_url = f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={gse_code}"
+        response = self.session.get(base_url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        title_td = soup.find("td", text="Title")
+        if title_td:
+            parent_row = title_td.find_parent("tr")
+            target_td = parent_row.find("td", style=lambda s: s and "text-align: justify" in s)
+            title = target_td.get_text(strip=True)
+
+        organism_td = soup.find("td", text="Organism")
+        if organism_td:
+            parent_row = organism_td.find_parent("tr")
+            target_td = parent_row.find("a")
+            organism = target_td.get_text(strip=True)
+
+        summary_td = soup.find("td", text="Summary")
+        if summary_td:
+            parent_row = summary_td.find_parent("tr")
+            target_td = parent_row.find("td", style=lambda s: s and "text-align: justify" in s)
+            summary = target_td.get_text(strip=True)
+
+        experiment_td = soup.find("td", text="Experiment type")
+        if experiment_td:
+            parent_row = experiment_td.find_parent("tr")
+            experiment = parent_row.find_all("td")[1].get_text(strip=True)
+
+        overall_design_td = soup.find("td", text="Overall design")
+        if overall_design_td:
+            parent_row = overall_design_td.find_parent("tr")
+            target_td = parent_row.find("td", style=lambda s: s and "text-align: justify" in s)
+            overall_design = target_td.get_text(strip=True)
+        pm_data = self.PmData(
+            Title=title,
+            Summary=summary,
+            Organism=organism,
+            Experiment_type=experiment,
+            Overall_design=overall_design,
+            GSE_code=gse_code
+        )
+        return pm_data
+
+
+
 if __name__ == "__main__":
     api = PubMedAPI()
-    api.create_dataframe(is_from_file=True)
-    print(api.df.head())
+    start = time.time()
+    print(api.get_info_from_pmid("GSE56045"))

@@ -24,8 +24,7 @@ class MainApp:
             st.session_state.current_labels = None
         if "current_X" not in st.session_state:
             st.session_state.current_X = None
-        if "text_pipeline" not in st.session_state:
-            st.session_state.text_pipeline = TextPipeline(n_clusters=8, max_features=10)
+
 
         self.pubmed_api = PubMedAPI()
 
@@ -40,6 +39,10 @@ class MainApp:
             st.text("or choose a preloaded dataset")
             if st.button("Load preloaded dataset", use_container_width=True):
                 self.handle_preloaded_dataset()
+            st.text("Set parameters for TF-IDF")
+            st.session_state.max_features = st.number_input("Enter a number of features", min_value=5, max_value=100, value=10, step=1)
+            st.session_state.num_clusters = st.number_input("Enter a number of clusters", min_value=1, max_value=100, value=8, step=1)
+
 
     def prepare_main_window(self):
         with st.container(key="app_title"):
@@ -58,7 +61,7 @@ class MainApp:
                 with col1:
                     p1 = st.selectbox(
                         "Original PMID",
-                        ["<select>"] + st.session_state.prepared_pubmed_dataframe["Original_PMID"].unique().tolist(),
+                        ["<select>"] + sorted(st.session_state.prepared_pubmed_dataframe["Original_PMID"].unique().tolist()),
                         key="Original_PMID"
                     )
                 with col2:
@@ -99,6 +102,7 @@ class MainApp:
 
     # ----------------------------------- Preloaded dataset handling -----------------------------------
     def handle_preloaded_dataset(self):
+        self.validate_user_preprocessing_parameters()
         self.reset_select_boxes()
         self.load_preloaded_dataset_from_csv()
         self.preprocess_raw_text()
@@ -121,7 +125,7 @@ class MainApp:
         list_of_pmids = []
         pmids = file_content.split("\n")
         for line in pmids:
-            line = line.replace(" ", "")
+            line = line.replace(" ", "").strip()
             if line.isdigit():
                 list_of_pmids.append(int(line))
         list_of_pmids = self.remove_duplicated_pmids_from_user_list(list_of_pmids)
@@ -134,8 +138,8 @@ class MainApp:
     def handle_user_dataset(self) -> None:
         self.reset_select_boxes()
         self.load_user_data()
-        self.set_dataframe_from_pmids(self.pubmed_api.pmids)
 
+        self.set_dataframe_from_pmids(self.pubmed_api.pmids)
         self.preprocess_raw_text()
         st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
         st.session_state.success_flag = True
@@ -146,6 +150,16 @@ class MainApp:
         st.session_state.prepared_pubmed_dataframe = self.pubmed_api.df
 
     # ----------------------------------- Preprocessing -----------------------------------
+    def validate_user_preprocessing_parameters(self) -> None:
+        if st.session_state.max_features is None:
+            st.session_state.max_features = 10
+        if st.session_state.num_clusters is None:
+            st.session_state.num_clusters = 8
+
+        st.session_state.text_pipeline = TextPipeline(n_clusters=st.session_state.num_clusters,
+                                                          max_features=st.session_state.max_features)
+
+
     def reset_pipelines(self):
         st.session_state.text_pipeline = TextPipeline(n_clusters=8, max_features=10)
 
@@ -171,23 +185,26 @@ class MainApp:
         colors = self.set_colors_and_opacity()
         st.session_state.prepared_pubmed_dataframe["colors"] = colors
         hover_text_selected = [
-            f"<b>{title}</b><br>GSE Code: {gse_code}<br>PMID: {pmid}<br>Organism: {organism}"
-            for title, gse_code, pmid, organism in zip(
+            f"<b>{title}</b><br>GSE Code: {gse_code}<br>PMID: {pmid}<br>Organism: {organism}<br>Experiment_type: {experiment_type}"
+            for title, gse_code, pmid, organism, experiment_type in zip(
+
                 st.session_state.prepared_pubmed_dataframe["Title"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
                 st.session_state.prepared_pubmed_dataframe["GSE_code"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
                 st.session_state.prepared_pubmed_dataframe["Original_PMID"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-                st.session_state.prepared_pubmed_dataframe["Organism"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1]
+                st.session_state.prepared_pubmed_dataframe["Organism"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
+                st.session_state.prepared_pubmed_dataframe["Experiment_type"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
             )
+
         ]
 
         hover_text_not_selected = [
-            f"<b>{title}</b><br>GSE Code: {gse_code}<br>PMID: {pmid}<br>Organism: {organism}"
-            for title, gse_code, pmid, organism, color in zip(
+            f"<b>{title}</b><br>GSE Code: {gse_code}<br>PMID: {pmid}<br>Organism: {organism}<br>Experiment_type: {experiment_type}"
+            for title, gse_code, pmid, organism, experiment_type in zip(
                 st.session_state.prepared_pubmed_dataframe["Title"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
                 st.session_state.prepared_pubmed_dataframe["GSE_code"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
                 st.session_state.prepared_pubmed_dataframe["Original_PMID"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
                 st.session_state.prepared_pubmed_dataframe["Organism"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
-                colors
+                st.session_state.prepared_pubmed_dataframe["Experiment_type"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0]
             )
         ]
 
@@ -231,10 +248,11 @@ class MainApp:
             ),
             width=900, height=600
         )
+        fig.update_layout(showlegend=False)
 
         return fig
 
-    def set_colors_and_opacity(self, alpha=1.0) -> list[str]:
+    def set_colors_and_opacity(self) -> list[str]:
         unique_labels = np.unique(st.session_state.current_labels)
         color_palette = px.colors.qualitative.Plotly[:len(unique_labels)]
         map_dict = dict(zip(unique_labels, color_palette))
