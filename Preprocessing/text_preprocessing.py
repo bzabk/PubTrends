@@ -1,4 +1,5 @@
 import string
+import random
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -6,6 +7,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
 
+random.seed(42)
 
 class RemovePunctuationTransformer(BaseEstimator, TransformerMixin):
 

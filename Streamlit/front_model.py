@@ -10,10 +10,11 @@ from Preprocessing.text_preprocessing import TextPipeline
 from PubMedAPI.pubmed_api import PubMedAPI
 import matplotlib.colors as mcolors
 
+
 class MainApp:
 
     def __init__(self):
-        
+
         if "prepared_pubmed_dataframe" not in st.session_state:
             st.session_state.prepared_pubmed_dataframe = None
         if "success_flag" not in st.session_state:
@@ -24,15 +25,25 @@ class MainApp:
             st.session_state.current_labels = None
         if "current_X" not in st.session_state:
             st.session_state.current_X = None
+        if "error_message" not in st.session_state:
+            st.session_state.error_message = ""
+        self.error_placeholder = None
+        self.tqdm_placeholder = None
 
-
-        self.pubmed_api = PubMedAPI()
+        self.pubmed_api = PubMedAPI(error_callback=self.update_error_message)
 
     # ----------------------------------- Layout Streamlit -----------------------------------
+    def prepare_main_window(self):
+        with st.container(key="app_title"):
+            st.title("PubTrends: Data Insights for Enhanced Paper Relevance")
+        self.error_placeholder = st.empty()
+        self.tqdm_placeholder = st.empty()
+
     def prepare_side_bar(self):
         with st.sidebar:
             st.sidebar.title("Enter txt file with list of PMIDs", anchor="center")
-            st.session_state.uploaded_file = st.file_uploader("Choose a file", type=["txt"], accept_multiple_files=False, label_visibility="collapsed")
+            st.session_state.uploaded_file = st.file_uploader("Choose a file", type=["txt"],
+                                                              accept_multiple_files=False, label_visibility="collapsed")
             if st.session_state.uploaded_file is not None:
                 if st.button("Load PMIDs file", use_container_width=True):
                     self.handle_user_dataset()
@@ -40,15 +51,10 @@ class MainApp:
             if st.button("Load preloaded dataset", use_container_width=True):
                 self.handle_preloaded_dataset()
             st.text("Set parameters for TF-IDF")
-            st.session_state.max_features = st.number_input("Enter a number of features", min_value=5, max_value=100, value=10, step=1)
-            st.session_state.num_clusters = st.number_input("Enter a number of clusters", min_value=1, max_value=100, value=8, step=1)
-
-
-    def prepare_main_window(self):
-        with st.container(key="app_title"):
-            st.title("PubTrends: Data Insights for Enhanced Paper Relevance")
-
-
+            st.session_state.max_features = st.number_input("Enter a number of features", min_value=1, max_value=200,
+                                                            value=10, step=1)
+            st.session_state.num_clusters = st.number_input("Enter a number of clusters", min_value=1, max_value=30,
+                                                            value=8, step=1)
 
     def prepare_tabs(self):
         tab_visualization, tab_info = st.tabs(["Visualization", "Info"])
@@ -56,12 +62,13 @@ class MainApp:
             if st.session_state.success_flag:
                 plot_placeholder = st.empty()
                 plot_placeholder.empty()
-                plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"),key="3d_plot_selected")
+                plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"), key="3d_plot_selected")
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     p1 = st.selectbox(
                         "Original PMID",
-                        ["<select>"] + sorted(st.session_state.prepared_pubmed_dataframe["Original_PMID"].unique().tolist()),
+                        ["<select>"] + sorted(
+                            st.session_state.prepared_pubmed_dataframe["Original_PMID"].unique().tolist()),
                         key="Original_PMID"
                     )
                 with col2:
@@ -84,21 +91,29 @@ class MainApp:
 
                         conditions = []
                         if selected_original_pmid != "<select>":
-                            conditions.append(st.session_state.prepared_pubmed_dataframe["Original_PMID"] == selected_original_pmid)
+                            conditions.append(
+                                st.session_state.prepared_pubmed_dataframe["Original_PMID"] == selected_original_pmid)
                         if selected_organism != "<select>":
-                            conditions.append(st.session_state.prepared_pubmed_dataframe["Organism"] == selected_organism)
+                            conditions.append(
+                                st.session_state.prepared_pubmed_dataframe["Organism"] == selected_organism)
                         if selected_experiment_type != "<select>":
-                            conditions.append(st.session_state.prepared_pubmed_dataframe["Experiment_type"] == selected_experiment_type)
+                            conditions.append(st.session_state.prepared_pubmed_dataframe[
+                                                  "Experiment_type"] == selected_experiment_type)
                         if conditions:
-                            st.session_state.prepared_pubmed_dataframe["is_selected"] = np.logical_and.reduce(conditions).astype(int)
+                            st.session_state.prepared_pubmed_dataframe["is_selected"] = np.logical_and.reduce(
+                                conditions).astype(int)
                         else:
                             st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
 
                         plot_placeholder.empty()
-                        plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"),key="3d_plot_filtered")
+                        plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"), key="3d_plot_filtered")
 
         with tab_info:
             st.write("Additional information can be displayed here.")
+
+    def update_error_message(self, message):
+        st.session_state.error_message = message
+        self.error_placeholder.error(st.session_state.error_message)
 
     # ----------------------------------- Preloaded dataset handling -----------------------------------
     def handle_preloaded_dataset(self):
@@ -108,7 +123,6 @@ class MainApp:
         self.preprocess_raw_text()
         st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
         st.session_state.success_flag = True
-
 
     def reset_select_boxes(self):
         st.session_state["Original_PMID"] = "<select>"
@@ -120,6 +134,18 @@ class MainApp:
         st.session_state.prepared_pubmed_dataframe = pd.read_csv(csv_path)
 
     # ----------------------------------- User data handling -----------------------------------
+
+    def set_dataframe_from_pmids(self, list_of_pmids) -> None:
+        self.pubmed_api.pmids = list_of_pmids
+        self.pubmed_api.create_dataframe(list_of_pmids=self.pubmed_api.pmids)
+        st.session_state.prepared_pubmed_dataframe = self.pubmed_api.df
+
+    def load_user_data(self):
+        uploaded_file = st.session_state.uploaded_file
+        self.pubmed_api.pmids = self.validate_chosen_file(uploaded_file)
+        if len(self.pubmed_api.pmids) < 10:
+            self.update_error_message("Please enter at least 10 PMIDs.")
+
     def validate_chosen_file(self, uploaded_file):
         file_content = uploaded_file.read().decode("utf-8")
         list_of_pmids = []
@@ -131,23 +157,15 @@ class MainApp:
         list_of_pmids = self.remove_duplicated_pmids_from_user_list(list_of_pmids)
         return list_of_pmids
 
-    def load_user_data(self):
-        uploaded_file = st.session_state.uploaded_file
-        self.pubmed_api.pmids = self.validate_chosen_file(uploaded_file)
-
     def handle_user_dataset(self) -> None:
         self.reset_select_boxes()
+        self.validate_user_preprocessing_parameters()
         self.load_user_data()
-
         self.set_dataframe_from_pmids(self.pubmed_api.pmids)
         self.preprocess_raw_text()
         st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
+        self.error_placeholder.empty()
         st.session_state.success_flag = True
-
-    def set_dataframe_from_pmids(self, list_of_pmids) -> None:
-        self.pubmed_api.pmids = list_of_pmids
-        self.pubmed_api.create_dataframe(is_from_file=False, list_of_pmids=self.pubmed_api.pmids)
-        st.session_state.prepared_pubmed_dataframe = self.pubmed_api.df
 
     # ----------------------------------- Preprocessing -----------------------------------
     def validate_user_preprocessing_parameters(self) -> None:
@@ -157,19 +175,15 @@ class MainApp:
             st.session_state.num_clusters = 8
 
         st.session_state.text_pipeline = TextPipeline(n_clusters=st.session_state.num_clusters,
-                                                          max_features=st.session_state.max_features)
-
-
-    def reset_pipelines(self):
-        st.session_state.text_pipeline = TextPipeline(n_clusters=8, max_features=10)
-
+                                                      max_features=st.session_state.max_features)
 
     def preprocess_raw_text(self) -> None:
         st.session_state.prepared_pubmed_dataframe["Text"] = st.session_state.prepared_pubmed_dataframe[
             ["Title", "Summary", "Overall_design", "Experiment_type", "Organism"]
         ].apply(lambda x: ' '.join(x), axis=1)
 
-        st.session_state.prepared_pubmed_dataframe["Experiment_type"] = st.session_state.prepared_pubmed_dataframe["Experiment_type"].apply(
+        st.session_state.prepared_pubmed_dataframe["Experiment_type"] = st.session_state.prepared_pubmed_dataframe[
+            "Experiment_type"].apply(
             lambda x: self.remove_semi_duplicated_experiment_type(x)
         )
         st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
@@ -181,18 +195,23 @@ class MainApp:
         st.session_state.current_labels = st.session_state.text_pipeline.cluster.labels_.astype(str)
 
     # ----------------------------------- Visualization -----------------------------------
-    def load_3d_plot(self,key) -> go.Figure:
+    def load_3d_plot(self, key) -> go.Figure:
         colors = self.set_colors_and_opacity()
         st.session_state.prepared_pubmed_dataframe["colors"] = colors
         hover_text_selected = [
             f"<b>{title}</b><br>GSE Code: {gse_code}<br>PMID: {pmid}<br>Organism: {organism}<br>Experiment_type: {experiment_type}"
             for title, gse_code, pmid, organism, experiment_type in zip(
 
-                st.session_state.prepared_pubmed_dataframe["Title"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-                st.session_state.prepared_pubmed_dataframe["GSE_code"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-                st.session_state.prepared_pubmed_dataframe["Original_PMID"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-                st.session_state.prepared_pubmed_dataframe["Organism"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-                st.session_state.prepared_pubmed_dataframe["Experiment_type"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
+                st.session_state.prepared_pubmed_dataframe["Title"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
+                st.session_state.prepared_pubmed_dataframe["GSE_code"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
+                st.session_state.prepared_pubmed_dataframe["Original_PMID"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
+                st.session_state.prepared_pubmed_dataframe["Organism"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
+                st.session_state.prepared_pubmed_dataframe["Experiment_type"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
             )
 
         ]
@@ -200,11 +219,16 @@ class MainApp:
         hover_text_not_selected = [
             f"<b>{title}</b><br>GSE Code: {gse_code}<br>PMID: {pmid}<br>Organism: {organism}<br>Experiment_type: {experiment_type}"
             for title, gse_code, pmid, organism, experiment_type in zip(
-                st.session_state.prepared_pubmed_dataframe["Title"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
-                st.session_state.prepared_pubmed_dataframe["GSE_code"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
-                st.session_state.prepared_pubmed_dataframe["Original_PMID"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
-                st.session_state.prepared_pubmed_dataframe["Organism"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
-                st.session_state.prepared_pubmed_dataframe["Experiment_type"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0]
+                st.session_state.prepared_pubmed_dataframe["Title"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
+                st.session_state.prepared_pubmed_dataframe["GSE_code"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
+                st.session_state.prepared_pubmed_dataframe["Original_PMID"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
+                st.session_state.prepared_pubmed_dataframe["Organism"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
+                st.session_state.prepared_pubmed_dataframe["Experiment_type"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0]
             )
         ]
 
@@ -214,7 +238,8 @@ class MainApp:
             z=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 1, 2],
             mode='markers',
             marker=dict(
-                color=st.session_state.prepared_pubmed_dataframe["colors"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
+                color=st.session_state.prepared_pubmed_dataframe["colors"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
                 size=8,
                 opacity=1
             ),
@@ -228,7 +253,8 @@ class MainApp:
             z=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 0, 2],
             mode='markers',
             marker=dict(
-                color=st.session_state.prepared_pubmed_dataframe["colors"][st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
+                color=st.session_state.prepared_pubmed_dataframe["colors"][
+                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
                 size=8,
                 opacity=0.1
             ),
@@ -291,7 +317,7 @@ class MainApp:
     @staticmethod
     def hex_to_rgba(hex_color, alpha):
         rgba = mcolors.to_rgba(hex_color, alpha)
-        return f'rgba({int(rgba[0]*255)}, {int(rgba[1]*255)}, {int(rgba[2]*255)})'
+        return f'rgba({int(rgba[0] * 255)}, {int(rgba[1] * 255)}, {int(rgba[2] * 255)})'
 
 
 if __name__ == "__main__":
