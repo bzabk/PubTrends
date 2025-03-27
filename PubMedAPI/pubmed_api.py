@@ -21,8 +21,9 @@ class PubMedAPI:
         def __str__(self):
             return f"Title: {self.Title}\nSummary: {self.Summary}\nOrganism: {self.Organism}\nExperiment_type: {self.Experiment_type}\nGSE_code: {self.GSE_code}\nOverall_design: {self.Overall_design}"
 
-    def __init__(self, error_callback):
+    def __init__(self, error_callback,tqdm_callback):
         self.error_callback = error_callback
+        self.tqdm_callback = tqdm_callback
         self.session = requests.Session()
         self.df = pd.DataFrame(
             columns=["Original_PMID", "Related_PMID", "Title", "Summary", "Overall_design", "Experiment_type",
@@ -34,7 +35,7 @@ class PubMedAPI:
             self._load_pmids_from_file()
         else:
             self._load_pmids_from_user(list_of_pmids=list_of_pmids)
-        for pubmed_idx in self.pmids:
+        for idx,pubmed_idx in enumerate(self.pmids):
             related_pmds = self._get_related_pmids(int(pubmed_idx))
             for pmid in related_pmds:
                 pm_data = self._get_info(pmid)
@@ -54,6 +55,7 @@ class PubMedAPI:
 
                 self.rows_data.append(row_dict)
             sleep(1)
+            self.tqdm_callback((idx+1)/len(self.pmids))
 
         self.df = pd.DataFrame(self.rows_data)
         # self.df.to_csv("PubMed_data.csv", index=False)

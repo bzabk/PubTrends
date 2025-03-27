@@ -30,7 +30,7 @@ class MainApp:
         self.error_placeholder = None
         self.tqdm_placeholder = None
 
-        self.pubmed_api = PubMedAPI(error_callback=self.update_error_message)
+        self.pubmed_api = PubMedAPI(error_callback=self.update_error_message, tqdm_callback=self.set_tqdm_bar)
 
     # ----------------------------------- Layout Streamlit -----------------------------------
     def prepare_main_window(self):
@@ -115,6 +115,9 @@ class MainApp:
         st.session_state.error_message = message
         self.error_placeholder.error(st.session_state.error_message)
 
+    def set_tqdm_bar(self,val):
+        self.tqdm_placeholder.progress(val)
+
     # ----------------------------------- Preloaded dataset handling -----------------------------------
     def handle_preloaded_dataset(self):
         self.validate_user_preprocessing_parameters()
@@ -161,10 +164,12 @@ class MainApp:
         self.reset_select_boxes()
         self.validate_user_preprocessing_parameters()
         self.load_user_data()
+        self.tqdm_placeholder.progress(0)
         self.set_dataframe_from_pmids(self.pubmed_api.pmids)
         self.preprocess_raw_text()
         st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
         self.error_placeholder.empty()
+        self.tqdm_placeholder.empty()
         st.session_state.success_flag = True
 
     # ----------------------------------- Preprocessing -----------------------------------
