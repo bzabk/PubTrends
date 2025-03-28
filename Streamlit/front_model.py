@@ -109,7 +109,8 @@ class MainApp:
                         plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"), key="3d_plot_filtered")
 
         with tab_info:
-            st.write("Additional information can be displayed here.")
+            with open('./Streamlit/info.md','r') as f:
+                st.markdown(f.read())
 
     def update_error_message(self, message):
         st.session_state.error_message = message
