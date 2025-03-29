@@ -46,6 +46,7 @@ class MainApp:
                                                               accept_multiple_files=False, label_visibility="collapsed")
             if st.session_state.uploaded_file is not None:
                 if st.button("Load PMIDs file", use_container_width=True):
+
                     self.handle_user_dataset()
             st.text("or choose a preloaded dataset")
             if st.button("Load preloaded dataset", use_container_width=True):
@@ -62,14 +63,17 @@ class MainApp:
             if st.session_state.success_flag:
                 plot_placeholder = st.empty()
                 plot_placeholder.empty()
+
                 plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"), key="3d_plot_selected")
+
+
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     p1 = st.selectbox(
-                        "Original PMID",
+                        "Pmid",
                         ["<select>"] + sorted(
-                            st.session_state.prepared_pubmed_dataframe["Original_PMID"].unique().tolist()),
-                        key="Original_PMID"
+                            st.session_state.prepared_pubmed_dataframe["Pmid"].unique().tolist()),
+                        key="Pmid"
                     )
                 with col2:
                     p2 = st.selectbox(
@@ -85,14 +89,14 @@ class MainApp:
                     )
                 with col4:
                     if st.button("Filter"):
-                        selected_original_pmid = st.session_state["Original_PMID"]
+                        selected_pmid = st.session_state["Pmid"]
                         selected_organism = st.session_state["Organism"]
                         selected_experiment_type = st.session_state["Experiment_type"]
 
                         conditions = []
-                        if selected_original_pmid != "<select>":
+                        if selected_pmid != "<select>":
                             conditions.append(
-                                st.session_state.prepared_pubmed_dataframe["Original_PMID"] == selected_original_pmid)
+                                st.session_state.prepared_pubmed_dataframe["Pmid"] == selected_pmid)
                         if selected_organism != "<select>":
                             conditions.append(
                                 st.session_state.prepared_pubmed_dataframe["Organism"] == selected_organism)
@@ -107,6 +111,8 @@ class MainApp:
 
                         plot_placeholder.empty()
                         plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"), key="3d_plot_filtered")
+                st.dataframe(st.session_state.prepared_pubmed_dataframe[['GSE_code','Title','Summary','Organism','Experiment_type','Overall_design']]
+                             [st.session_state.prepared_pubmed_dataframe["is_selected"] == 1])
 
         with tab_info:
             with open('./Streamlit/info.md','r') as f:
@@ -121,6 +127,7 @@ class MainApp:
 
     # ----------------------------------- Preloaded dataset handling -----------------------------------
     def handle_preloaded_dataset(self):
+        st.session_state.current_num_clusters = st.session_state.num_clusters
         self.validate_user_preprocessing_parameters()
         self.reset_select_boxes()
         self.load_preloaded_dataset_from_csv()
@@ -129,7 +136,7 @@ class MainApp:
         st.session_state.success_flag = True
 
     def reset_select_boxes(self):
-        st.session_state["Original_PMID"] = "<select>"
+        st.session_state["Pmid"] = "<select>"
         st.session_state["Organism"] = "<select>"
         st.session_state["Experiment_type"] = "<select>"
 
@@ -212,7 +219,7 @@ class MainApp:
                     st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
                 st.session_state.prepared_pubmed_dataframe["GSE_code"][
                     st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-                st.session_state.prepared_pubmed_dataframe["Original_PMID"][
+                st.session_state.prepared_pubmed_dataframe["Pmid"][
                     st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
                 st.session_state.prepared_pubmed_dataframe["Organism"][
                     st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
@@ -229,7 +236,7 @@ class MainApp:
                     st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
                 st.session_state.prepared_pubmed_dataframe["GSE_code"][
                     st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
-                st.session_state.prepared_pubmed_dataframe["Original_PMID"][
+                st.session_state.prepared_pubmed_dataframe["Pmid"][
                     st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
                 st.session_state.prepared_pubmed_dataframe["Organism"][
                     st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
@@ -285,8 +292,9 @@ class MainApp:
         return fig
 
     def set_colors_and_opacity(self) -> list[str]:
-        unique_labels = np.unique(st.session_state.current_labels)
-        color_palette = px.colors.qualitative.Plotly[:len(unique_labels)]
+        unique_labels = np.arange(0, st.session_state.current_num_clusters,1).astype(str)
+        colors = px.colors.qualitative.Alphabet
+        color_palette = colors[:len(unique_labels)]
         map_dict = dict(zip(unique_labels, color_palette))
         list_of_colors = [map_dict[label] for label in st.session_state.current_labels]
         idx = 0
