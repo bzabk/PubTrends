@@ -30,12 +30,12 @@ class RemovePunctuationTransformer(BaseEstimator, TransformerMixin):
 
 class TextPipeline:
 
-    def __init__(self,n_clusters=8,max_features=100):
+    def __init__(self,n_clusters=8,max_features=100,perplexity=30):
         self.pipeline = Pipeline([])
         self.cluster = KMeans(n_clusters=n_clusters)
         self.punctuation_remover = RemovePunctuationTransformer()
         self.vectorizer = TfidfVectorizer(max_features=max_features, stop_words='english', min_df=2)
-        self.tsne_reduction = TSNE(n_components=3)
+        self.tsne_reduction = TSNE(n_components=3,perplexity=perplexity)
 
         self.text_processing_pipeline = Pipeline([
             ('remove_punctuation', self.punctuation_remover),

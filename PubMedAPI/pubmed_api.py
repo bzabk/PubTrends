@@ -49,10 +49,13 @@ class PubMedAPI:
                 }
 
                 self.rows_data.append(row_dict)
-            sleep(1)
+            #sleep(1)
             self.tqdm_callback((idx+1)/len(self.pmids))
 
         self.df = pd.DataFrame(self.rows_data)
+        if self.df.shape[0] <=10:
+            self.error_callback("Data Frame has less than 10 rows, please provide more unique gse_codes")
+            return
         #self.df.to_csv("PubMed_data.csv", index=False)
 
     def _load_pmids_from_file(self) -> None:

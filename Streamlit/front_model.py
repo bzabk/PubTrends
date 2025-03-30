@@ -1,8 +1,10 @@
+from collections import deque
 import numpy as np
 import streamlit as st
 import pandas as pd
 import sys
 import os
+import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -27,19 +29,26 @@ class MainApp:
             st.session_state.current_X = None
         if "error_message" not in st.session_state:
             st.session_state.error_message = ""
+        if "saved_locally_dataset" not in st.session_state:
+            st.session_state.saved_locally_dataset = []
+        if "name_deque" not in st.session_state:
+            st.session_state.name_deque = deque(maxlen=3)
+        if "local_df_deque" not in st.session_state:
+            st.session_state.local_df_deque = deque(maxlen=3)
+
         self.error_placeholder = None
         self.tqdm_placeholder = None
 
         self.pubmed_api = PubMedAPI(error_callback=self.update_error_message, tqdm_callback=self.set_tqdm_bar)
 
     # ----------------------------------- Layout Streamlit -----------------------------------
-    def prepare_main_window(self):
+    def prepare_main_window(self) -> None:
         with st.container(key="app_title"):
             st.title("PubTrends: Data Insights for Enhanced Paper Relevance")
         self.error_placeholder = st.empty()
         self.tqdm_placeholder = st.empty()
 
-    def prepare_side_bar(self):
+    def prepare_side_bar(self) -> None:
         with st.sidebar:
             st.sidebar.title("Enter txt file with list of PMIDs", anchor="center")
             st.session_state.uploaded_file = st.file_uploader("Choose a file", type=["txt"],
@@ -48,8 +57,8 @@ class MainApp:
                 if st.button("Load PMIDs file", use_container_width=True):
 
                     self.handle_user_dataset()
-            st.text("or choose a preloaded dataset")
-            if st.button("Load preloaded dataset", use_container_width=True):
+            st.text("or choose a toy dataset")
+            if st.button("Load toy dataset", use_container_width=True):
                 self.handle_preloaded_dataset()
             st.text("Set parameters for TF-IDF")
             st.session_state.max_features = st.number_input("Enter a number of features", min_value=1, max_value=200,
@@ -57,7 +66,16 @@ class MainApp:
             st.session_state.num_clusters = st.number_input("Enter a number of clusters", min_value=1, max_value=30,
                                                             value=8, step=1)
 
-    def prepare_tabs(self):
+            if st.session_state.name_deque:
+                selected_dataset = st.selectbox("Previously saved datasets", st.session_state.name_deque)
+                if st.button("Load previously saved dataset"):
+                    index = st.session_state.name_deque.index(selected_dataset)
+                    st.session_state.prepared_pubmed_dataframe = st.session_state.local_df_deque[index]
+                    self.handle_preloaded_dataset(load_toy_dataset=False)
+
+
+
+    def prepare_tabs(self) -> None:
         tab_visualization, tab_info = st.tabs(["Visualization", "Info"])
         with tab_visualization:
             if st.session_state.success_flag:
@@ -118,29 +136,30 @@ class MainApp:
             with open('./Streamlit/info.md','r') as f:
                 st.markdown(f.read())
 
-    def update_error_message(self, message):
+    def update_error_message(self, message) -> None:
         st.session_state.error_message = message
         self.error_placeholder.error(st.session_state.error_message)
 
-    def set_tqdm_bar(self,val):
+    def set_tqdm_bar(self,val) -> None:
         self.tqdm_placeholder.progress(val)
 
     # ----------------------------------- Preloaded dataset handling -----------------------------------
-    def handle_preloaded_dataset(self):
+    def handle_preloaded_dataset(self,load_toy_dataset=True) -> None:
         st.session_state.current_num_clusters = st.session_state.num_clusters
+        if load_toy_dataset:
+            self.load_preloaded_dataset_from_csv()
         self.validate_user_preprocessing_parameters()
         self.reset_select_boxes()
-        self.load_preloaded_dataset_from_csv()
         self.preprocess_raw_text()
         st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
         st.session_state.success_flag = True
 
-    def reset_select_boxes(self):
+    def reset_select_boxes(self) -> None:
         st.session_state["Pmid"] = "<select>"
         st.session_state["Organism"] = "<select>"
         st.session_state["Experiment_type"] = "<select>"
 
-    def load_preloaded_dataset_from_csv(self):
+    def load_preloaded_dataset_from_csv(self) -> None:
         csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'PubMedAPI', 'PubMed_data.csv'))
         st.session_state.prepared_pubmed_dataframe = pd.read_csv(csv_path)
 
@@ -151,13 +170,13 @@ class MainApp:
         self.pubmed_api.create_dataframe(list_of_pmids=self.pubmed_api.pmids)
         st.session_state.prepared_pubmed_dataframe = self.pubmed_api.df
 
-    def load_user_data(self):
+    def load_user_data(self) -> None:
         uploaded_file = st.session_state.uploaded_file
         self.pubmed_api.pmids = self.validate_chosen_file(uploaded_file)
         if len(self.pubmed_api.pmids) < 10:
             self.update_error_message("Please enter at least 10 PMIDs.")
 
-    def validate_chosen_file(self, uploaded_file):
+    def validate_chosen_file(self, uploaded_file) -> list[int]:
         file_content = uploaded_file.read().decode("utf-8")
         list_of_pmids = []
         pmids = file_content.split("\n")
@@ -166,19 +185,30 @@ class MainApp:
             if line.isdigit():
                 list_of_pmids.append(int(line))
         list_of_pmids = self.remove_duplicated_pmids_from_user_list(list_of_pmids)
+        if len(list_of_pmids) < 10:
+            self.update_error_message("Please enter at least 10 PMIDs.")
         return list_of_pmids
 
     def handle_user_dataset(self) -> None:
+        st.session_state.current_num_clusters = st.session_state.num_clusters
         self.reset_select_boxes()
-        self.validate_user_preprocessing_parameters()
         self.load_user_data()
         self.tqdm_placeholder.progress(0)
         self.set_dataframe_from_pmids(self.pubmed_api.pmids)
+        self.validate_user_preprocessing_parameters()
         self.preprocess_raw_text()
         st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
         self.error_placeholder.empty()
         self.tqdm_placeholder.empty()
         st.session_state.success_flag = True
+        self.save_locally_dataset()
+
+    def save_locally_dataset(self) -> None:
+        now = datetime.datetime.now()
+        idx = len(st.session_state.name_deque)
+        st.session_state.name_deque.appendleft(f"Dataset: [{idx}] {now.strftime('%Y-%m-%d %H-%M-%S')}")
+        st.session_state.local_df_deque.appendleft(st.session_state.prepared_pubmed_dataframe)
+
 
     # ----------------------------------- Preprocessing -----------------------------------
     def validate_user_preprocessing_parameters(self) -> None:
@@ -186,9 +216,11 @@ class MainApp:
             st.session_state.max_features = 10
         if st.session_state.num_clusters is None:
             st.session_state.num_clusters = 8
-
+        n_samples = len(st.session_state.prepared_pubmed_dataframe)
+        perplexity = min(30, n_samples - 1)
         st.session_state.text_pipeline = TextPipeline(n_clusters=st.session_state.num_clusters,
-                                                      max_features=st.session_state.max_features)
+                                                      max_features=st.session_state.max_features,
+                                                      perplexity=perplexity)
 
     def preprocess_raw_text(self) -> None:
         st.session_state.prepared_pubmed_dataframe["Text"] = st.session_state.prepared_pubmed_dataframe[
@@ -269,7 +301,7 @@ class MainApp:
                 color=st.session_state.prepared_pubmed_dataframe["colors"][
                     st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
                 size=8,
-                opacity=0.1
+                opacity=0.08
             ),
             hovertext=hover_text_not_selected,
             hoverinfo='text',
@@ -329,7 +361,7 @@ class MainApp:
         return list(set(pmids))
 
     @staticmethod
-    def hex_to_rgba(hex_color, alpha):
+    def hex_to_rgba(hex_color, alpha) -> str:
         rgba = mcolors.to_rgba(hex_color, alpha)
         return f'rgba({int(rgba[0] * 255)}, {int(rgba[1] * 255)}, {int(rgba[2] * 255)})'
 
