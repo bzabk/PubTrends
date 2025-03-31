@@ -97,7 +97,7 @@ class PubMedAPI:
         """
         Returns a list of datasets related to the given PMID by calling an API function.
         If no datasets are found for the provided PMID, an empty list is returned,
-        `error_callback` is invoked to display a Streamlit error message, and
+        `error_callback` is invoked to display a App error message, and
         the method proceeds to process the next PMID.
         :param pmid: The PubMed ID for which to retrieve related datasets.
         :return: A list of datasets related to the given PMID.

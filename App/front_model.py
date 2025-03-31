@@ -14,8 +14,8 @@ import matplotlib.colors as mcolors
 
 class MainApp:
     """
-    Main application class for the PubTrends Streamlit app.
-    This class handles the initialization of the Streamlit session state,
+    Main application class for the PubTrends App app.
+    This class handles the initialization of the App session state,
     layout preparation, data loading, preprocessing, and visualization.
 
     Attributes:
@@ -53,7 +53,7 @@ class MainApp:
 
         self.pubmed_api = PubMedAPI(error_callback=self.update_error_message, tqdm_callback=self.set_tqdm_bar)
 
-    # ----------------------------------- Layout Streamlit -----------------------------------
+    # ----------------------------------- Layout App -----------------------------------
     def prepare_main_window(self) -> None:
         """
         Reserving space for the app title,error messages and the progress bar.
@@ -68,9 +68,9 @@ class MainApp:
         Creates the sidebar layout, which includes:
         - A file uploader for the user’s file
         - A button for loading the toy dataset
-        - A Streamlit number_input for setting the TF-IDF feature count
-        - A Streamlit number_input for setting n_clusters (used by the KMeans algorithm)
-        - A Streamlit selection box for choosing from the last three loaded user DataFrames
+        - A App number_input for setting the TF-IDF feature count
+        - A App number_input for setting n_clusters (used by the KMeans algorithm)
+        - A App selection box for choosing from the last three loaded user DataFrames
         """
         with st.sidebar:
             st.sidebar.title("Enter txt file with list of PMIDs", anchor="center")
@@ -106,7 +106,7 @@ class MainApp:
 
         In the Visualization tab, you’ll find:
         - A 3D visualization
-        - A Streamlit select box for choosing PMIDs, experiment types, and organisms
+        - A App select box for choosing PMIDs, experiment types, and organisms
         - A preview of the associated DataFrame
         """
         tab_visualization, tab_info = st.tabs(["Visualization", "Info"])
@@ -167,7 +167,7 @@ class MainApp:
                              [st.session_state.prepared_pubmed_dataframe["is_selected"] == 1])
 
         with tab_info:
-            with open('./Streamlit/info.md','r') as f:
+            with open('./App/info.md','r') as f:
                 st.markdown(f.read())
 
     def update_error_message(self, message) -> None:
@@ -513,9 +513,3 @@ class MainApp:
         return f'rgb({int(rgba[0] * 255)}, {int(rgba[1] * 255)}, {int(rgba[2] * 255)})'
 
 
-if __name__ == "__main__":
-    app = MainApp()
-    app.load_styles()
-    app.prepare_main_window()
-    app.prepare_side_bar()
-    app.prepare_tabs()
