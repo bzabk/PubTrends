@@ -10,26 +10,37 @@ from sklearn.manifold import TSNE
 random.seed(42)
 
 class RemovePunctuationTransformer(BaseEstimator, TransformerMixin):
+        """
+        A custom scikit-learn like transformer for removing punctuation from text data.
+        It is being used as preprocessing before running TF-IDF encoding on text data.
+        """
 
-    def __init__(self):
-        pass
+        def __init__(self):
+            pass
 
-    def fit(self, X, y=None):
-        return self
+        def fit(self, X, y=None):
+            return self
 
-    def transform(self, X, y=None):
-        if isinstance(X, pd.Series):
-            X_transformed = X.apply(lambda x: x.translate(str.maketrans('', '', string.punctuation)))
-        else:
-            X_transformed = pd.Series(X).apply(lambda x: x.translate(str.maketrans('', '', string.punctuation)))
-        return X_transformed
+        def transform(self, X, y=None):
+            if isinstance(X, pd.Series):
+                X_transformed = X.apply(lambda x: x.translate(str.maketrans('', '', string.punctuation)))
+            else:
+                X_transformed = pd.Series(X).apply(lambda x: x.translate(str.maketrans('', '', string.punctuation)))
+            return X_transformed
 
-    def fit_transform(self, X, y=None):
-        return self.fit(X, y).transform(X)
+        def fit_transform(self, X, y=None):
+            return self.fit(X, y).transform(X)
 
 
 class TextPipeline:
+    '''
+    Main pipeline for processing raw data into a format that can visualized on a 3D scatter plot
+    Pipeline consists of 2 main steps:
+    1. Text processing pipeline: Remove punctuation and vectorize text data
+    2. TF-IDF encoding
+    Next k_means and tsne are being fitted on the processed data
 
+    '''
     def __init__(self,n_clusters=8,max_features=100,perplexity=30):
         self.pipeline = Pipeline([])
         self.cluster = KMeans(n_clusters=n_clusters)

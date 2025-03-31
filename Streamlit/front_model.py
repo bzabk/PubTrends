@@ -12,11 +12,23 @@ from Preprocessing.text_preprocessing import TextPipeline
 from PubMedAPI.pubmed_api import PubMedAPI
 import matplotlib.colors as mcolors
 
-
 class MainApp:
+    """
+    Main application class for the PubTrends Streamlit app.
+    This class handles the initialization of the Streamlit session state,
+    layout preparation, data loading, preprocessing, and visualization.
+
+    Attributes:
+    error_placeholder (st.empty): Placeholder for displaying error messages.
+    tqdm_placeholder (st.empty): Placeholder for displaying the progress bar.
+    pubmed_api (PubMedAPI): Instance of the PubMedAPI class for fetching data from PubMed.
+    """
 
     def __init__(self):
 
+        """
+        Some of the variables we want to save between streamlit sessions
+        """
         if "prepared_pubmed_dataframe" not in st.session_state:
             st.session_state.prepared_pubmed_dataframe = None
         if "success_flag" not in st.session_state:
@@ -43,12 +55,23 @@ class MainApp:
 
     # ----------------------------------- Layout Streamlit -----------------------------------
     def prepare_main_window(self) -> None:
-        with st.container(key="app_title"):
+        """
+        Reserving space for the app title,error messages and the progress bar.
+        """
+        with st.container():
             st.title("PubTrends: Data Insights for Enhanced Paper Relevance")
         self.error_placeholder = st.empty()
         self.tqdm_placeholder = st.empty()
 
     def prepare_side_bar(self) -> None:
+        """
+        Creates the sidebar layout, which includes:
+        - A file uploader for the user’s file
+        - A button for loading the toy dataset
+        - A Streamlit number_input for setting the TF-IDF feature count
+        - A Streamlit number_input for setting n_clusters (used by the KMeans algorithm)
+        - A Streamlit selection box for choosing from the last three loaded user DataFrames
+        """
         with st.sidebar:
             st.sidebar.title("Enter txt file with list of PMIDs", anchor="center")
             st.session_state.uploaded_file = st.file_uploader("Choose a file", type=["txt"],
@@ -76,6 +99,16 @@ class MainApp:
 
 
     def prepare_tabs(self) -> None:
+        """
+        Creates two tabs:
+        1) A Visualization tab
+        2) An Information tab providing general details about the application
+
+        In the Visualization tab, you’ll find:
+        - A 3D visualization
+        - A Streamlit select box for choosing PMIDs, experiment types, and organisms
+        - A preview of the associated DataFrame
+        """
         tab_visualization, tab_info = st.tabs(["Visualization", "Info"])
         with tab_visualization:
             if st.session_state.success_flag:
@@ -86,6 +119,7 @@ class MainApp:
 
 
                 col1, col2, col3, col4 = st.columns(4)
+                #filters
                 with col1:
                     p1 = st.selectbox(
                         "Pmid",
@@ -137,17 +171,34 @@ class MainApp:
                 st.markdown(f.read())
 
     def update_error_message(self, message) -> None:
+        """
+        Function servers purpose of displaying streamlit error bar
+        It is passed as an argument to PubmedApi constructor argument in order to execute this function
+        if there would be some errors while fetching the data from API
+        """
         st.session_state.error_message = message
         self.error_placeholder.error(st.session_state.error_message)
 
     def set_tqdm_bar(self,val) -> None:
+        """
+        Function for setting the progress bar, passed as an argument to PubMedApi constructor argument
+        in order to update the progress bar while fetching the data from API
+        """
         self.tqdm_placeholder.progress(val)
 
-    # ----------------------------------- Preloaded dataset handling -----------------------------------
+    # ----------------------------------- Toy dataset handling -----------------------------------
     def handle_preloaded_dataset(self,load_toy_dataset=True) -> None:
+        """
+        Loads and preprocesses a toy dataset, then displays a 3D visualization.
+        If `load_toy_dataset` is False, the method retrieves a previously loaded DataFrame
+        from the deque of user datasets.
+
+        :param load_toy_dataset: Boolean indicating whether to load the toy dataset
+                                 or use a previously loaded DataFrame instead.
+        """
         st.session_state.current_num_clusters = st.session_state.num_clusters
         if load_toy_dataset:
-            self.load_preloaded_dataset_from_csv()
+            self.load_toy_dataset_from_csv()
         self.validate_user_preprocessing_parameters()
         self.reset_select_boxes()
         self.preprocess_raw_text()
@@ -155,28 +206,54 @@ class MainApp:
         st.session_state.success_flag = True
 
     def reset_select_boxes(self) -> None:
+        """
+        After loading a new dataset and setting a new 3D plot,
+        reset the previous selections in the select boxes.
+        """
         st.session_state["Pmid"] = "<select>"
         st.session_state["Organism"] = "<select>"
         st.session_state["Experiment_type"] = "<select>"
 
-    def load_preloaded_dataset_from_csv(self) -> None:
+    def load_toy_dataset_from_csv(self) -> None:
+        """
+        Load toy dataset from csv file
+        """
         csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'PubMedAPI', 'PubMed_data.csv'))
         st.session_state.prepared_pubmed_dataframe = pd.read_csv(csv_path)
 
     # ----------------------------------- User data handling -----------------------------------
 
     def set_dataframe_from_pmids(self, list_of_pmids) -> None:
+        """
+        Create a DataFrame with the following columns:
+        Pmid, Geo_dataset_ind, GSE_code, Title, Summary, Overall_design, Experiment_type, Organism.
+        The DataFrame is created using a list of PMIDs and `self.pubmed_api`,
+        which is an instance of the PubMedAPI class.
+        """
         self.pubmed_api.pmids = list_of_pmids
         self.pubmed_api.create_dataframe(list_of_pmids=self.pubmed_api.pmids)
         st.session_state.prepared_pubmed_dataframe = self.pubmed_api.df
 
     def load_user_data(self) -> None:
+        """
+        Load user data from the uploaded file.
+
+        This method retrieves the uploaded file from the session state, validates the PMIDs in the file,
+        and updates the error message if there are fewer than 10 valid PMIDs.
+        """
         uploaded_file = st.session_state.uploaded_file
         self.pubmed_api.pmids = self.validate_chosen_file(uploaded_file)
-        if len(self.pubmed_api.pmids) < 10:
-            self.update_error_message("Please enter at least 10 PMIDs.")
 
     def validate_chosen_file(self, uploaded_file) -> list[int]:
+        """
+        Function checks whether the uploaded file is in the correct format and extracts PMIDs from it.
+        In case user uploaded less than 10 correct PMIDs, an error message is displayed.
+        If txt file contains less than 10 PMIDs, the error message is displayed.
+
+        :param uploaded_file: The file uploaded by the user.
+
+        :return list[int]: A list of unique PMIDs extracted from the file.
+        """
         file_content = uploaded_file.read().decode("utf-8")
         list_of_pmids = []
         pmids = file_content.split("\n")
@@ -190,6 +267,9 @@ class MainApp:
         return list_of_pmids
 
     def handle_user_dataset(self) -> None:
+        """
+        Main function for handling PMIDs provided by the user via a .txt file.
+        """
         st.session_state.current_num_clusters = st.session_state.num_clusters
         self.reset_select_boxes()
         self.load_user_data()
@@ -197,13 +277,16 @@ class MainApp:
         self.set_dataframe_from_pmids(self.pubmed_api.pmids)
         self.validate_user_preprocessing_parameters()
         self.preprocess_raw_text()
-        st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
         self.error_placeholder.empty()
         self.tqdm_placeholder.empty()
         st.session_state.success_flag = True
         self.save_locally_dataset()
 
     def save_locally_dataset(self) -> None:
+        """
+        Saving last 3 datasets to deque with max length 3, which later can be visualized again
+        by selecting them in selected_dataset st.select_box
+        """
         now = datetime.datetime.now()
         idx = len(st.session_state.name_deque)
         st.session_state.name_deque.appendleft(f"Dataset: [{idx}] {now.strftime('%Y-%m-%d %H-%M-%S')}")
@@ -212,6 +295,12 @@ class MainApp:
 
     # ----------------------------------- Preprocessing -----------------------------------
     def validate_user_preprocessing_parameters(self) -> None:
+        """
+        This method checks whether the `max_features` and `num_clusters` parameters are set in the session state.
+        If not, it assigns default values.
+        The `perplexity` parameter must be set manually. If its value is higher than the number of data points
+        in the DataFrame, t-SNE will raise an error.
+        """
         if st.session_state.max_features is None:
             st.session_state.max_features = 10
         if st.session_state.num_clusters is None:
@@ -223,14 +312,25 @@ class MainApp:
                                                       perplexity=perplexity)
 
     def preprocess_raw_text(self) -> None:
-        st.session_state.prepared_pubmed_dataframe["Text"] = st.session_state.prepared_pubmed_dataframe[
-            ["Title", "Summary", "Overall_design", "Experiment_type", "Organism"]
-        ].apply(lambda x: ' '.join(x), axis=1)
-
+        """
+        Main function for processing raw text from a DataFrame into 3D points.
+        Steps:
+        1) Handle and remove semi-duplicated 'Experiment_type' entries.
+        2) Concatenate all relevant columns.
+        3) Set the 'is_selected' column to 1 by default (ensuring no points have lower opacity).
+        4) Apply TF-IDF to the concatenated text.
+        5) Reduce dimensionality to 3D.
+        6) Fit the KMeans algorithm and store the resulting labels in st.session_state.
+        """
         st.session_state.prepared_pubmed_dataframe["Experiment_type"] = st.session_state.prepared_pubmed_dataframe[
             "Experiment_type"].apply(
             lambda x: self.remove_semi_duplicated_experiment_type(x)
         )
+
+        st.session_state.prepared_pubmed_dataframe["Text"] = st.session_state.prepared_pubmed_dataframe[
+            ["Title", "Summary", "Overall_design", "Experiment_type", "Organism"]
+        ].apply(lambda x: ' '.join(x), axis=1)
+
         st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
         X = st.session_state.text_pipeline.fit_transform_text_processing_pipeline(
             st.session_state.prepared_pubmed_dataframe["Text"]
@@ -241,8 +341,17 @@ class MainApp:
 
     # ----------------------------------- Visualization -----------------------------------
     def load_3d_plot(self, key) -> go.Figure:
+        """
+        Main function responsible for displaying interactive 3D plot visualizing
+        layout of the data points in 3D space.
+
+        :return go.Figure: prepared 3D plot ready to display
+        """
+        # getting list of colors for each point
         colors = self.set_colors_and_opacity()
         st.session_state.prepared_pubmed_dataframe["colors"] = colors
+
+        #creating hover text for these points that were selected by user
         hover_text_selected = [
             f"<b>{title}</b><br>GSE Code: {gse_code}<br>PMID: {pmid}<br>Organism: {organism}<br>Experiment_type: {experiment_type}"
             for title, gse_code, pmid, organism, experiment_type in zip(
@@ -260,7 +369,7 @@ class MainApp:
             )
 
         ]
-
+        # creating hover text for these points that were not selected by user
         hover_text_not_selected = [
             f"<b>{title}</b><br>GSE Code: {gse_code}<br>PMID: {pmid}<br>Organism: {organism}<br>Experiment_type: {experiment_type}"
             for title, gse_code, pmid, organism, experiment_type in zip(
@@ -276,7 +385,7 @@ class MainApp:
                     st.session_state.prepared_pubmed_dataframe["is_selected"] == 0]
             )
         ]
-
+        # set of selected points with opacity 1
         trace1 = go.Scatter3d(
             x=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 1, 0],
             y=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 1, 1],
@@ -291,7 +400,7 @@ class MainApp:
             hovertext=hover_text_selected,
             hoverinfo='text',
         )
-
+        # set of selected points with opacity 0.08
         trace2 = go.Scatter3d(
             x=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 0, 0],
             y=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 0, 1],
@@ -324,13 +433,21 @@ class MainApp:
         return fig
 
     def set_colors_and_opacity(self) -> list[str]:
+        """
+        Function assigns color and opacity to each label from the KMeans algorithm.
+        To easly distingush points that satisfied filter conditions, points that were not selected
+        """
         unique_labels = np.arange(0, st.session_state.current_num_clusters,1).astype(str)
         colors = px.colors.qualitative.Alphabet
         color_palette = colors[:len(unique_labels)]
+        # mapping from unique_labels to color
         map_dict = dict(zip(unique_labels, color_palette))
+        #assigning color to each point based on its label
         list_of_colors = [map_dict[label] for label in st.session_state.current_labels]
         idx = 0
         color_palette_final = []
+        # looping through all points in dataframe and
+        # setting opacity based on whether they were selected by user
         for col in list_of_colors:
             if st.session_state.prepared_pubmed_dataframe["is_selected"].iloc[idx] == 1:
                 color_palette_final.append(self.hex_to_rgba(col, alpha=1))
@@ -341,12 +458,39 @@ class MainApp:
 
     @staticmethod
     def load_styles() -> None:
+        """
+        Load CSS styles responsible for setting a fixed sidebar width.
+        """
         css_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'Static', 'style.css'))
         with open(css_path) as css:
             st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
 
     @staticmethod
     def remove_semi_duplicated_experiment_type(text: str) -> str:
+        """
+        In some cases, the only difference between two experiment-type strings is the order
+        of their phrases (e.g., “Genome binding/occupancy profiling” followed by “Expression
+        profiling” vs. the reverse). This function standardizes such strings by sorting
+        their phrases so they match.
+
+        For example:
+        1) 'Genome binding/occupancy profiling by high throughput sequencing;
+           Expression profiling by high throughput sequencing;
+           Methylation profiling by high throughput sequencing'
+        2) 'Genome binding/occupancy profiling by high throughput sequencing;
+           Methylation profiling by high throughput sequencing;
+           Expression profiling by high throughput sequencing'
+
+        Here, the only variation is the order of the three profiling phrases,
+        so we treat these as identical.
+
+        In some cases, an additional word like 'Other' appears in one of the strings,
+        e.g.:
+        1) 'Expression profiling by high throughput sequencing; Other'
+        2) 'Expression profiling by high throughput sequencing'
+
+        We similarly assume these represent the same experiment type.
+        """
         text = text.split(";")
         text = [t.strip() for t in text]
         text.sort()
@@ -362,8 +506,11 @@ class MainApp:
 
     @staticmethod
     def hex_to_rgba(hex_color, alpha) -> str:
+        """
+        Converting hex color format to rgb
+        """
         rgba = mcolors.to_rgba(hex_color, alpha)
-        return f'rgba({int(rgba[0] * 255)}, {int(rgba[1] * 255)}, {int(rgba[2] * 255)})'
+        return f'rgb({int(rgba[0] * 255)}, {int(rgba[1] * 255)}, {int(rgba[2] * 255)})'
 
 
 if __name__ == "__main__":
