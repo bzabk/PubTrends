@@ -8,7 +8,7 @@ import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from Preprocessing.text_preprocessing import TextPipeline
+from Preprocessing.text_preprocessing import *
 from PubMedAPI.pubmed_api import PubMedAPI
 import matplotlib.colors as mcolors
 
@@ -23,14 +23,18 @@ class MainApp:
     tqdm_placeholder (st.empty): Placeholder for displaying the progress bar.
     pubmed_api (PubMedAPI): Instance of the PubMedAPI class for fetching data from PubMed.
     """
-
+    DEQUE_MAX_LENGTH = 3
+    PERPLEXITY_MIN = 30
+    PLOT_WIDTH = 900
+    PLOT_HEIGHT = 600
     def __init__(self):
-        DEQUE_MAX_LENGTH = 3
+
+
         """
         Some of the variables we want to save between streamlit sessions
         """
-        if "prepared_pubmed_dataframe" not in st.session_state:
-            st.session_state.prepared_pubmed_dataframe = None
+        if "pmid_df" not in st.session_state:
+            st.session_state.pmid_df = None
         if "success_flag" not in st.session_state:
             st.session_state.success_flag = False
         if "uploaded_file" not in st.session_state:
@@ -44,12 +48,22 @@ class MainApp:
         if "saved_locally_dataset" not in st.session_state:
             st.session_state.saved_locally_dataset = []
         if "name_deque" not in st.session_state:
-            st.session_state.name_deque = deque(maxlen=DEQUE_MAX_LENGTH)
+            st.session_state.name_deque = deque(maxlen=MainApp.DEQUE_MAX_LENGTH)
         if "local_df_deque" not in st.session_state:
-            st.session_state.local_df_deque = deque(maxlen=DEQUE_MAX_LENGTH)
+            st.session_state.local_df_deque = deque(maxlen=MainApp.DEQUE_MAX_LENGTH)
+        if "kmeans_processor" not in st.session_state:
+            st.session_state.kmeans_processor = None
+        if "tfidf_processor" not in st.session_state:
+            st.session_state.tfidf_processor = None
+        if "tsne_processor" not in st.session_state:
+            st.session_state.tsne_processor = None
 
         self.error_placeholder = None
         self.tqdm_placeholder = None
+
+        st.session_state.remove_punctuation = ProcessorFactory.get_processor("remove_punctuation")
+
+
 
         self.pubmed_api = PubMedAPI(error_callback=self.update_error_message, tqdm_callback=self.set_tqdm_bar)
 
@@ -93,7 +107,7 @@ class MainApp:
                 selected_dataset = st.selectbox("Previously saved datasets", st.session_state.name_deque)
                 if st.button("Load previously saved dataset"):
                     idx = st.session_state.name_deque.index(selected_dataset)
-                    st.session_state.prepared_pubmed_dataframe = st.session_state.local_df_deque[idx]
+                    st.session_state.pmid_df = st.session_state.local_df_deque[idx]
                     self.handle_preloaded_dataset(load_toy_dataset=False)
 
 
@@ -124,19 +138,19 @@ class MainApp:
                     p1 = st.selectbox(
                         "Pmid",
                         ["<select>"] + sorted(
-                            st.session_state.prepared_pubmed_dataframe["Pmid"].unique().tolist()),
+                            st.session_state.pmid_df["Pmid"].unique().tolist()),
                         key="Pmid"
                     )
                 with col2:
                     p2 = st.selectbox(
                         "Organism",
-                        ["<select>"] + st.session_state.prepared_pubmed_dataframe["Organism"].unique().tolist(),
+                        ["<select>"] + st.session_state.pmid_df["Organism"].unique().tolist(),
                         key="Organism"
                     )
                 with col3:
                     p3 = st.selectbox(
                         "Experiment type",
-                        ["<select>"] + st.session_state.prepared_pubmed_dataframe["Experiment_type"].unique().tolist(),
+                        ["<select>"] + st.session_state.pmid_df["Experiment_type"].unique().tolist(),
                         key="Experiment_type"
                     )
                 with col4:
@@ -148,23 +162,23 @@ class MainApp:
                         conditions = []
                         if selected_pmid != "<select>":
                             conditions.append(
-                                st.session_state.prepared_pubmed_dataframe["Pmid"] == selected_pmid)
+                                st.session_state.pmid_df["Pmid"] == selected_pmid)
                         if selected_organism != "<select>":
                             conditions.append(
-                                st.session_state.prepared_pubmed_dataframe["Organism"] == selected_organism)
+                                st.session_state.pmid_df["Organism"] == selected_organism)
                         if selected_experiment_type != "<select>":
-                            conditions.append(st.session_state.prepared_pubmed_dataframe[
+                            conditions.append(st.session_state.pmid_df[
                                                   "Experiment_type"] == selected_experiment_type)
                         if conditions:
-                            st.session_state.prepared_pubmed_dataframe["is_selected"] = np.logical_and.reduce(
+                            st.session_state.pmid_df["is_selected"] = np.logical_and.reduce(
                                 conditions).astype(int)
                         else:
-                            st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
+                            st.session_state.pmid_df["is_selected"] = 1
 
                         plot_placeholder.empty()
                         plot_placeholder.plotly_chart(self.load_3d_plot("3d_plot_selected"), key="3d_plot_filtered")
-                st.dataframe(st.session_state.prepared_pubmed_dataframe[['GSE_code','Title','Summary','Organism','Experiment_type','Overall_design']]
-                             [st.session_state.prepared_pubmed_dataframe["is_selected"] == 1])
+                st.dataframe(st.session_state.pmid_df[['GSE_code','Title','Summary','Organism','Experiment_type','Overall_design']]
+                             [st.session_state.pmid_df["is_selected"] == 1])
 
         with tab_info:
             with open('./App/info.md','r') as f:
@@ -202,7 +216,7 @@ class MainApp:
         self.validate_user_preprocessing_parameters()
         self.reset_select_boxes()
         self.preprocess_raw_text()
-        st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
+        st.session_state.pmid_df["is_selected"] = 1
         st.session_state.success_flag = True
 
     def reset_select_boxes(self) -> None:
@@ -219,7 +233,7 @@ class MainApp:
         Load toy dataset from csv file
         """
         csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'PubMedAPI', 'PubMed_data.csv'))
-        st.session_state.prepared_pubmed_dataframe = pd.read_csv(csv_path)
+        st.session_state.pmid_df = pd.read_csv(csv_path)
 
     # ----------------------------------- User data handling -----------------------------------
 
@@ -232,12 +246,11 @@ class MainApp:
         """
         self.pubmed_api.pmids = list_of_pmids
         self.pubmed_api.create_dataframe(list_of_pmids=self.pubmed_api.pmids)
-        st.session_state.prepared_pubmed_dataframe = self.pubmed_api.df
+        st.session_state.pmid_df = self.pubmed_api.df
 
     def load_user_data(self) -> None:
         """
         Load user data from the uploaded file.
-
         This method retrieves the uploaded file from the session state, validates the PMIDs in the file,
         and updates the error message if there are fewer than 10 valid PMIDs.
         """
@@ -290,7 +303,7 @@ class MainApp:
         now = datetime.datetime.now()
         idx = len(st.session_state.name_deque)
         st.session_state.name_deque.appendleft(f"Dataset: [{idx}] {now.strftime('%Y-%m-%d %H-%M-%S')}")
-        st.session_state.local_df_deque.appendleft(st.session_state.prepared_pubmed_dataframe)
+        st.session_state.local_df_deque.appendleft(st.session_state.pmid_df)
 
 
     # ----------------------------------- Preprocessing -----------------------------------
@@ -305,11 +318,12 @@ class MainApp:
             st.session_state.max_features = 10
         if st.session_state.num_clusters is None:
             st.session_state.num_clusters = 8
-        n_samples = len(st.session_state.prepared_pubmed_dataframe)
-        perplexity = min(30, n_samples - 1)
-        st.session_state.text_pipeline = TextPipeline(n_clusters=st.session_state.num_clusters,
-                                                      max_features=st.session_state.max_features,
-                                                      perplexity=perplexity)
+        n_samples = len(st.session_state.pmid_df)
+        perplexity = min(MainApp.PERPLEXITY_MIN, n_samples - 1)
+
+        st.session_state.tsne_processor = ProcessorFactory.get_processor("tsne",perplexity=perplexity)
+        st.session_state.kmeans_processor = ProcessorFactory.get_processor("kmeans",n_clusters=st.session_state.num_clusters)
+        st.session_state.tfidf_processor = ProcessorFactory.get_processor("tfidf",max_features=st.session_state.max_features)
 
     def preprocess_raw_text(self) -> None:
         """
@@ -322,22 +336,11 @@ class MainApp:
         5) Reduce dimensionality to 3D.
         6) Fit the KMeans algorithm and store the resulting labels in st.session_state.
         """
-        st.session_state.prepared_pubmed_dataframe["Experiment_type"] = st.session_state.prepared_pubmed_dataframe[
-            "Experiment_type"].apply(
-            lambda x: self.remove_semi_duplicated_experiment_type(x)
-        )
-
-        st.session_state.prepared_pubmed_dataframe["Text"] = st.session_state.prepared_pubmed_dataframe[
-            ["Title", "Summary", "Overall_design", "Experiment_type", "Organism"]
-        ].apply(lambda x: ' '.join(x), axis=1)
-
-        st.session_state.prepared_pubmed_dataframe["is_selected"] = 1
-        X = st.session_state.text_pipeline.fit_transform_text_processing_pipeline(
-            st.session_state.prepared_pubmed_dataframe["Text"]
-        ).toarray()
-        st.session_state.text_pipeline.fit_kmeans(X)
-        st.session_state.current_X = st.session_state.text_pipeline.fit_transform_tsne(X)
-        st.session_state.current_labels = st.session_state.text_pipeline.cluster.labels_.astype(str)
+        st.session_state.pmid_df = st.session_state.remove_punctuation.process(st.session_state.pmid_df)
+        st.session_state.current_X = st.session_state.tfidf_processor.process(st.session_state.pmid_df["Text"])
+        st.session_state.current_X = st.session_state.tsne_processor.process(st.session_state.current_X)
+        st.session_state.kmeans_processor.process(st.session_state.current_X)
+        st.session_state.current_labels = st.session_state.kmeans_processor.cluster.labels_.astype(str)
 
     # ----------------------------------- Visualization -----------------------------------
     def load_3d_plot(self, key) -> go.Figure:
@@ -349,64 +352,46 @@ class MainApp:
         """
         # setting list of colors for each point in the dataframe
         self.set_colors_and_opacity()
-
         #creating hover text for these points that were selected by user
-        hover_text_selected = [
-            f"<b>{row['Title']}</b><br>GSE Code: {row['GSE_code']}<br>PMID: {row['Pmid']}<br>Organism: {row['Organism']}<br>Experiment_type: {row['Experiment_type']}"
-            for _, row in st.session_state.prepared_pubmed_dataframe[st.session_state.prepared_pubmed_dataframe["is_selected"] == 1].iterrows()
-        ]
-        # creating hover text for these points that were not selected by user
-        hover_text_not_selected = [
-            f"<b>{row['Title']}</b><br>GSE Code: {row['GSE_code']}<br>PMID: {row['Pmid']}<br>Organism: {row['Organism']}<br>Experiment_type: {row['Experiment_type']}"
-            for _, row in st.session_state.prepared_pubmed_dataframe[st.session_state.prepared_pubmed_dataframe["is_selected"] == 0].iterrows()
-        ]
+        hover_text_selected = self._create_hover_text(is_selected=1)
+        hover_text_not_selected = self._create_hover_text(is_selected=0)
         # set of selected points with opacity 1
-        trace1 = go.Scatter3d(
-            x=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 1, 0],
-            y=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 1, 1],
-            z=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 1, 2],
-            mode='markers',
-            marker=dict(
-                color=st.session_state.prepared_pubmed_dataframe["colors"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-                size=8,
-                opacity=1
-            ),
-            hovertext=hover_text_selected,
-            hoverinfo='text',
-        )
-        # set of selected points with opacity 0.08
-        trace2 = go.Scatter3d(
-            x=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 0, 0],
-            y=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 0, 1],
-            z=st.session_state.current_X[st.session_state.prepared_pubmed_dataframe["is_selected"] == 0, 2],
-            mode='markers',
-            marker=dict(
-                color=st.session_state.prepared_pubmed_dataframe["colors"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
-                size=8,
-                opacity=0.08
-            ),
-            hovertext=hover_text_not_selected,
-            hoverinfo='text',
-        )
+        trace1 = self._create_trace(is_selected=1, opacity=1, hover_text=hover_text_selected)
+        trace2 = self._create_trace(is_selected=0, opacity=0.08, hover_text=hover_text_not_selected)
 
         fig = go.Figure()
         fig.add_trace(trace1)
         fig.add_trace(trace2)
 
-        fig.update_layout(
-            scene=dict(
-                xaxis_title='X',
-                yaxis_title='Y',
-                zaxis_title='Z'
-            ),
-            width=900, height=600
-        )
-        fig.update_layout(showlegend=False)
+        fig.update_layout(scene=dict(xaxis_title='X',yaxis_title='Y',zaxis_title='Z'),
+            width=MainApp.PLOT_WIDTH,height=MainApp.PLOT_HEIGHT,showlegend=False)
         return fig
 
-    def set_colors_and_opacity(self) -> None:
+    @staticmethod
+    def _create_hover_text(is_selected: int) -> list[str]:
+        hover_text_selected = [
+            f"<b>{row['Title']}</b><br>GSE Code: {row['GSE_code']}<br>PMID: {row['Pmid']}<br>Organism: {row['Organism']}<br>Experiment_type: {row['Experiment_type']}"
+            for _, row in st.session_state.pmid_df[st.session_state.pmid_df["is_selected"] == is_selected].iterrows()
+        ]
+        return hover_text_selected
+
+    @staticmethod
+    def _create_trace(is_selected: int,opacity: float,hover_text: list[str]) -> go.Scatter3d:
+        return go.Scatter3d(
+            x=st.session_state.current_X[st.session_state.pmid_df["is_selected"] == is_selected, 0],
+            y=st.session_state.current_X[st.session_state.pmid_df["is_selected"] == is_selected, 1],
+            z=st.session_state.current_X[st.session_state.pmid_df["is_selected"] == is_selected, 2],
+            mode='markers',
+            marker=dict(
+                color=st.session_state.pmid_df["colors"][st.session_state.pmid_df["is_selected"] == is_selected],
+                size=8,
+                opacity=opacity
+            ),
+            hovertext=hover_text,
+            hoverinfo='text',
+        )
+    @classmethod
+    def set_colors_and_opacity(cls) -> None:
         """
         Function assigns color and opacity to each label from the KMeans algorithm.
         To easly distingush points that satisfied filter conditions, points that were not selected
@@ -423,12 +408,12 @@ class MainApp:
         # looping through all points in dataframe and
         # setting opacity based on whether they were selected by user
         for col in list_of_colors:
-            if st.session_state.prepared_pubmed_dataframe["is_selected"].iloc[idx] == 1:
-                color_palette_final.append(self.hex_to_rgba(col, alpha=1))
+            if st.session_state.pmid_df["is_selected"].iloc[idx] == 1:
+                color_palette_final.append(cls.hex_to_rgba(col, alpha=1))
             else:
-                color_palette_final.append(self.hex_to_rgba(col, alpha=0.2))
+                color_palette_final.append(cls.hex_to_rgba(col, alpha=0.2))
             idx += 1
-        st.session_state.prepared_pubmed_dataframe["colors"] = color_palette_final
+        st.session_state.pmid_df["colors"] = color_palette_final
 
     @staticmethod
     def load_css_styles() -> None:
@@ -438,41 +423,6 @@ class MainApp:
         css_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'Static', 'style.css'))
         with open(css_path) as css:
             st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
-
-    @staticmethod
-    def remove_semi_duplicated_experiment_type(text: str) -> str:
-        """
-        In some cases, the only difference between two experiment-type strings is the order
-        of their phrases (e.g., “Genome binding/occupancy profiling” followed by “Expression
-        profiling” vs. the reverse). This function standardizes such strings by sorting
-        their phrases so they match.
-
-        For example:
-        1) 'Genome binding/occupancy profiling by high throughput sequencing;
-           Expression profiling by high throughput sequencing;
-           Methylation profiling by high throughput sequencing'
-        2) 'Genome binding/occupancy profiling by high throughput sequencing;
-           Methylation profiling by high throughput sequencing;
-           Expression profiling by high throughput sequencing'
-
-        Here, the only variation is the order of the three profiling phrases,
-        so we treat these as identical.
-
-        In some cases, an additional word like 'Other' appears in one of the strings,
-        e.g.:
-        1) 'Expression profiling by high throughput sequencing; Other'
-        2) 'Expression profiling by high throughput sequencing'
-
-        We similarly assume these represent the same experiment type.
-        """
-        text = text.split(";")
-        text = [t.strip() for t in text]
-        text.sort()
-        if "Other" in text:
-            text.remove("Other")
-        text = [t for t in text if t.strip() != "Other"]
-        new_text = ";".join(text)
-        return new_text
 
     @staticmethod
     def remove_duplicated_pmids_from_user_list(pmids: list[int]) -> list[int]:
