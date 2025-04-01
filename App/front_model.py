@@ -14,7 +14,7 @@ import matplotlib.colors as mcolors
 
 class MainApp:
     """
-    Main application class for the PubTrends App app.
+    Main application class for the PubTrends app.
     This class handles the initialization of the App session state,
     layout preparation, data loading, preprocessing, and visualization.
 
@@ -25,7 +25,7 @@ class MainApp:
     """
 
     def __init__(self):
-
+        DEQUE_MAX_LENGTH = 3
         """
         Some of the variables we want to save between streamlit sessions
         """
@@ -44,9 +44,9 @@ class MainApp:
         if "saved_locally_dataset" not in st.session_state:
             st.session_state.saved_locally_dataset = []
         if "name_deque" not in st.session_state:
-            st.session_state.name_deque = deque(maxlen=3)
+            st.session_state.name_deque = deque(maxlen=DEQUE_MAX_LENGTH)
         if "local_df_deque" not in st.session_state:
-            st.session_state.local_df_deque = deque(maxlen=3)
+            st.session_state.local_df_deque = deque(maxlen=DEQUE_MAX_LENGTH)
 
         self.error_placeholder = None
         self.tqdm_placeholder = None
@@ -92,8 +92,8 @@ class MainApp:
             if st.session_state.name_deque:
                 selected_dataset = st.selectbox("Previously saved datasets", st.session_state.name_deque)
                 if st.button("Load previously saved dataset"):
-                    index = st.session_state.name_deque.index(selected_dataset)
-                    st.session_state.prepared_pubmed_dataframe = st.session_state.local_df_deque[index]
+                    idx = st.session_state.name_deque.index(selected_dataset)
+                    st.session_state.prepared_pubmed_dataframe = st.session_state.local_df_deque[idx]
                     self.handle_preloaded_dataset(load_toy_dataset=False)
 
 
@@ -279,8 +279,8 @@ class MainApp:
         self.preprocess_raw_text()
         self.error_placeholder.empty()
         self.tqdm_placeholder.empty()
-        st.session_state.success_flag = True
         self.save_locally_dataset()
+        st.session_state.success_flag = True
 
     def save_locally_dataset(self) -> None:
         """
@@ -347,43 +347,18 @@ class MainApp:
 
         :return go.Figure: prepared 3D plot ready to display
         """
-        # getting list of colors for each point
-        colors = self.set_colors_and_opacity()
-        st.session_state.prepared_pubmed_dataframe["colors"] = colors
+        # setting list of colors for each point in the dataframe
+        self.set_colors_and_opacity()
 
         #creating hover text for these points that were selected by user
         hover_text_selected = [
-            f"<b>{title}</b><br>GSE Code: {gse_code}<br>PMID: {pmid}<br>Organism: {organism}<br>Experiment_type: {experiment_type}"
-            for title, gse_code, pmid, organism, experiment_type in zip(
-
-                st.session_state.prepared_pubmed_dataframe["Title"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-                st.session_state.prepared_pubmed_dataframe["GSE_code"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-                st.session_state.prepared_pubmed_dataframe["Pmid"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-                st.session_state.prepared_pubmed_dataframe["Organism"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-                st.session_state.prepared_pubmed_dataframe["Experiment_type"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 1],
-            )
-
+            f"<b>{row['Title']}</b><br>GSE Code: {row['GSE_code']}<br>PMID: {row['Pmid']}<br>Organism: {row['Organism']}<br>Experiment_type: {row['Experiment_type']}"
+            for _, row in st.session_state.prepared_pubmed_dataframe[st.session_state.prepared_pubmed_dataframe["is_selected"] == 1].iterrows()
         ]
         # creating hover text for these points that were not selected by user
         hover_text_not_selected = [
-            f"<b>{title}</b><br>GSE Code: {gse_code}<br>PMID: {pmid}<br>Organism: {organism}<br>Experiment_type: {experiment_type}"
-            for title, gse_code, pmid, organism, experiment_type in zip(
-                st.session_state.prepared_pubmed_dataframe["Title"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
-                st.session_state.prepared_pubmed_dataframe["GSE_code"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
-                st.session_state.prepared_pubmed_dataframe["Pmid"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
-                st.session_state.prepared_pubmed_dataframe["Organism"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0],
-                st.session_state.prepared_pubmed_dataframe["Experiment_type"][
-                    st.session_state.prepared_pubmed_dataframe["is_selected"] == 0]
-            )
+            f"<b>{row['Title']}</b><br>GSE Code: {row['GSE_code']}<br>PMID: {row['Pmid']}<br>Organism: {row['Organism']}<br>Experiment_type: {row['Experiment_type']}"
+            for _, row in st.session_state.prepared_pubmed_dataframe[st.session_state.prepared_pubmed_dataframe["is_selected"] == 0].iterrows()
         ]
         # set of selected points with opacity 1
         trace1 = go.Scatter3d(
@@ -429,10 +404,9 @@ class MainApp:
             width=900, height=600
         )
         fig.update_layout(showlegend=False)
-
         return fig
 
-    def set_colors_and_opacity(self) -> list[str]:
+    def set_colors_and_opacity(self) -> None:
         """
         Function assigns color and opacity to each label from the KMeans algorithm.
         To easly distingush points that satisfied filter conditions, points that were not selected
@@ -454,10 +428,10 @@ class MainApp:
             else:
                 color_palette_final.append(self.hex_to_rgba(col, alpha=0.2))
             idx += 1
-        return color_palette_final
+        st.session_state.prepared_pubmed_dataframe["colors"] = color_palette_final
 
     @staticmethod
-    def load_styles() -> None:
+    def load_css_styles() -> None:
         """
         Load CSS styles responsible for setting a fixed sidebar width.
         """

@@ -4,13 +4,13 @@ import pandas as pd
 import requests
 import xmltodict
 import time
+from .singleton import Singleton
 
 
-class PubMedAPI:
+class PubMedAPI(metaclass=Singleton):
     """
     This class is responsible for generating a DataFrame from a text file containing a list of pmids
     """
-
     @dataclass
     class PmData:
         """
@@ -178,7 +178,3 @@ class PubMedAPI:
     def _save_to_csv(self, df: pd.DataFrame):
         df.to_csv("PubMed_data.csv", index=False)
 
-if __name__ == "__main__":
-    api = PubMedAPI()
-    start = time.time()
-    print(api.get_info_from_pmid("GSE56045"))
