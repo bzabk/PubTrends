@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Preprocessing.text_preprocessing import *
 from PubMedAPI.pubmed_api import PubMedAPI
 import matplotlib.colors as mcolors
-from PubMedAPI.observer import Observer
+from PubMedAPI.observer import Observer, Observable
 
 class MainApp(Observer):
     """
@@ -21,7 +21,7 @@ class MainApp(Observer):
 
     Attributes:
     error_placeholder (st.empty): Placeholder for displaying error messages.
-    tqdm_placeholder (st.empty): Placeholder for displaying the progress bar.
+    progress_bar_placeholder (st.empty): Placeholder for displaying the progress bar.
     pubmed_api (PubMedAPI): Instance of the PubMedAPI class for fetching data from PubMed.
     """
     DEQUE_MAX_LENGTH = 3
@@ -30,11 +30,11 @@ class MainApp(Observer):
     PLOT_HEIGHT = 600
     MIN_LEN_PMID_LIST = 10
     def __init__(self):
-
-
         """
         Some of the variables we want to save between streamlit sessions
         """
+        self.progress_bar_placeholder = None
+        self.error_placeholder = None
         if "pmid_df" not in st.session_state:
             st.session_state.pmid_df = None
         if "success_flag" not in st.session_state:
@@ -45,8 +45,6 @@ class MainApp(Observer):
             st.session_state.current_labels = None
         if "current_X" not in st.session_state:
             st.session_state.current_X = None
-        if "error_message" not in st.session_state:
-            st.session_state.error_message = ""
         if "saved_locally_dataset" not in st.session_state:
             st.session_state.saved_locally_dataset = []
         if "name_deque" not in st.session_state:
@@ -59,18 +57,20 @@ class MainApp(Observer):
             st.session_state.tfidf_processor = None
         if "tsne_processor" not in st.session_state:
             st.session_state.tsne_processor = None
-
-        self.error_placeholder = None
-        self.tqdm_placeholder = None
+            
 
         st.session_state.remove_punctuation = ProcessorFactory.get_processor("remove_punctuation")
 
         self.pubmed_api = PubMedAPI()
         self.pubmed_api.attach(self)
 
-    def update(self,observable,*args,**kwargs):
+    def update_on_error(self,observable: Observable,*args,**kwargs):
         if "message" in kwargs:
             self.update_error_message(kwargs.get("message"))
+    def update_progress(self,observable: Observable,*args,**kwargs):
+
+        if "measure" in kwargs:
+            self.set_progress_bar(kwargs.get("measure"))
     # ----------------------------------- Layout App -----------------------------------
     def prepare_main_window(self) -> None:
         """
@@ -79,7 +79,7 @@ class MainApp(Observer):
         with st.container():
             st.title("PubTrends: Data Insights for Enhanced Paper Relevance")
         self.error_placeholder = st.empty()
-        self.tqdm_placeholder = st.empty()
+        self.progress_bar_placeholder = st.empty()
 
     def prepare_side_bar(self) -> None:
         """
@@ -181,24 +181,23 @@ class MainApp(Observer):
             with open('./App/info.md','r') as f:
                 st.markdown(f.read())
 
-    def update_error_message(self, message) -> None:
+    def update_error_message(self, message: str) -> None:
         """
         Function servers purpose of displaying streamlit error bar
         It is passed as an argument to PubmedApi constructor argument in order to execute this function
         if there would be some errors while fetching the data from API
         """
-        st.session_state.error_message = message
-        self.error_placeholder.error(st.session_state.error_message)
+        self.error_placeholder.error(message)
 
-    def set_tqdm_bar(self,val) -> None:
+    def set_progress_bar(self,val: float) -> None:
         """
         Function for setting the progress bar, passed as an argument to PubMedApi constructor argument
         in order to update the progress bar while fetching the data from API
         """
-        self.tqdm_placeholder.progress(val)
+        self.progress_bar_placeholder.progress(val)
 
     # ----------------------------------- Toy dataset handling -----------------------------------
-    def handle_preloaded_dataset(self,load_toy_dataset=True) -> None:
+    def handle_preloaded_dataset(self,load_toy_dataset: bool=True) -> None:
         """
         Loads and preprocesses a toy dataset, then displays a 3D visualization.
         If `load_toy_dataset` is False, the method retrieves a previously loaded DataFrame
@@ -286,12 +285,12 @@ class MainApp(Observer):
             st.session_state.current_num_clusters = st.session_state.num_clusters
             self.reset_select_boxes()
             self.load_user_data()
-            self.tqdm_placeholder.progress(0)
+            self.set_progress_bar(0)
             self.set_dataframe_from_pmids(self.pubmed_api.pmids)
             self.validate_user_preprocessing_parameters()
             self.preprocess_raw_text()
             self.error_placeholder.empty()
-            self.tqdm_placeholder.empty()
+            self.progress_bar_placeholder.empty()
             self.save_locally_dataset()
             st.session_state.success_flag = True
         except Exception:
