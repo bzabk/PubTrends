@@ -11,8 +11,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Preprocessing.text_preprocessing import *
 from PubMedAPI.pubmed_api import PubMedAPI
 import matplotlib.colors as mcolors
+from PubMedAPI.observer import Observer
 
-class MainApp:
+class MainApp(Observer):
     """
     Main application class for the PubTrends app.
     This class handles the initialization of the App session state,
@@ -27,6 +28,7 @@ class MainApp:
     PERPLEXITY_MIN = 30
     PLOT_WIDTH = 900
     PLOT_HEIGHT = 600
+    MIN_LEN_PMID_LIST = 10
     def __init__(self):
 
 
@@ -63,10 +65,12 @@ class MainApp:
 
         st.session_state.remove_punctuation = ProcessorFactory.get_processor("remove_punctuation")
 
+        self.pubmed_api = PubMedAPI()
+        self.pubmed_api.attach(self)
 
-
-        self.pubmed_api = PubMedAPI(error_callback=self.update_error_message, tqdm_callback=self.set_tqdm_bar)
-
+    def update(self,observable,*args,**kwargs):
+        if "message" in kwargs:
+            self.update_error_message(kwargs.get("message"))
     # ----------------------------------- Layout App -----------------------------------
     def prepare_main_window(self) -> None:
         """
@@ -135,22 +139,15 @@ class MainApp:
                 col1, col2, col3, col4 = st.columns(4)
                 #filters
                 with col1:
-                    p1 = st.selectbox(
-                        "Pmid",
-                        ["<select>"] + sorted(
-                            st.session_state.pmid_df["Pmid"].unique().tolist()),
+                    p1 = st.selectbox("Pmid",["<select>"] + sorted(st.session_state.pmid_df["Pmid"].unique().tolist()),
                         key="Pmid"
                     )
                 with col2:
-                    p2 = st.selectbox(
-                        "Organism",
-                        ["<select>"] + st.session_state.pmid_df["Organism"].unique().tolist(),
+                    p2 = st.selectbox("Organism",["<select>"] + st.session_state.pmid_df["Organism"].unique().tolist(),
                         key="Organism"
                     )
                 with col3:
-                    p3 = st.selectbox(
-                        "Experiment type",
-                        ["<select>"] + st.session_state.pmid_df["Experiment_type"].unique().tolist(),
+                    p3 = st.selectbox("Experiment type",["<select>"] + st.session_state.pmid_df["Experiment_type"].unique().tolist(),
                         key="Experiment_type"
                     )
                 with col4:
@@ -216,10 +213,9 @@ class MainApp:
         self.validate_user_preprocessing_parameters()
         self.reset_select_boxes()
         self.preprocess_raw_text()
-        st.session_state.pmid_df["is_selected"] = 1
         st.session_state.success_flag = True
-
-    def reset_select_boxes(self) -> None:
+    @staticmethod
+    def reset_select_boxes() -> None:
         """
         After loading a new dataset and setting a new 3D plot,
         reset the previous selections in the select boxes.
@@ -228,7 +224,8 @@ class MainApp:
         st.session_state["Organism"] = "<select>"
         st.session_state["Experiment_type"] = "<select>"
 
-    def load_toy_dataset_from_csv(self) -> None:
+    @staticmethod
+    def load_toy_dataset_from_csv() -> None:
         """
         Load toy dataset from csv file
         """
@@ -255,9 +252,10 @@ class MainApp:
         and updates the error message if there are fewer than 10 valid PMIDs.
         """
         uploaded_file = st.session_state.uploaded_file
+
         self.pubmed_api.pmids = self.validate_chosen_file(uploaded_file)
 
-    def validate_chosen_file(self, uploaded_file) -> list[int]:
+    def validate_chosen_file(self, uploaded_file) -> list[int] | None:
         """
         Function checks whether the uploaded file is in the correct format and extracts PMIDs from it.
         In case user uploaded less than 10 correct PMIDs, an error message is displayed.
@@ -274,28 +272,33 @@ class MainApp:
             line = line.replace(" ", "").strip()
             if line.isdigit():
                 list_of_pmids.append(int(line))
-        list_of_pmids = self.remove_duplicated_pmids_from_user_list(list_of_pmids)
-        if len(list_of_pmids) < 10:
-            self.update_error_message("Please enter at least 10 PMIDs.")
+        list_of_pmids = list(set(list_of_pmids))
+        if len(list_of_pmids) < MainApp.MIN_LEN_PMID_LIST:
+            self.update_error_message(message="Please enter at least 10 PMIDs.")
+            raise Exception
         return list_of_pmids
 
     def handle_user_dataset(self) -> None:
         """
         Main function for handling PMIDs provided by the user via a .txt file.
         """
-        st.session_state.current_num_clusters = st.session_state.num_clusters
-        self.reset_select_boxes()
-        self.load_user_data()
-        self.tqdm_placeholder.progress(0)
-        self.set_dataframe_from_pmids(self.pubmed_api.pmids)
-        self.validate_user_preprocessing_parameters()
-        self.preprocess_raw_text()
-        self.error_placeholder.empty()
-        self.tqdm_placeholder.empty()
-        self.save_locally_dataset()
-        st.session_state.success_flag = True
+        try:
+            st.session_state.current_num_clusters = st.session_state.num_clusters
+            self.reset_select_boxes()
+            self.load_user_data()
+            self.tqdm_placeholder.progress(0)
+            self.set_dataframe_from_pmids(self.pubmed_api.pmids)
+            self.validate_user_preprocessing_parameters()
+            self.preprocess_raw_text()
+            self.error_placeholder.empty()
+            self.tqdm_placeholder.empty()
+            self.save_locally_dataset()
+            st.session_state.success_flag = True
+        except Exception:
+            return
 
-    def save_locally_dataset(self) -> None:
+    @staticmethod
+    def save_locally_dataset() -> None:
         """
         Saving last 3 datasets to deque with max length 3, which later can be visualized again
         by selecting them in selected_dataset st.select_box
@@ -307,7 +310,8 @@ class MainApp:
 
 
     # ----------------------------------- Preprocessing -----------------------------------
-    def validate_user_preprocessing_parameters(self) -> None:
+    @staticmethod
+    def validate_user_preprocessing_parameters() -> None:
         """
         This method checks whether the `max_features` and `num_clusters` parameters are set in the session state.
         If not, it assigns default values.
@@ -325,7 +329,8 @@ class MainApp:
         st.session_state.kmeans_processor = ProcessorFactory.get_processor("kmeans",n_clusters=st.session_state.num_clusters)
         st.session_state.tfidf_processor = ProcessorFactory.get_processor("tfidf",max_features=st.session_state.max_features)
 
-    def preprocess_raw_text(self) -> None:
+    @staticmethod
+    def preprocess_raw_text() -> None:
         """
         Main function for processing raw text from a DataFrame into 3D points.
         Steps:
@@ -423,10 +428,6 @@ class MainApp:
         css_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'Static', 'style.css'))
         with open(css_path) as css:
             st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
-
-    @staticmethod
-    def remove_duplicated_pmids_from_user_list(pmids: list[int]) -> list[int]:
-        return list(set(pmids))
 
     @staticmethod
     def hex_to_rgba(hex_color, alpha) -> str:

@@ -3,11 +3,10 @@ from typing import Optional
 import pandas as pd
 import requests
 import xmltodict
-import time
 from .singleton import Singleton
+from .observer import Observable
 
-
-class PubMedAPI(metaclass=Singleton):
+class PubMedAPI(Observable,metaclass=Singleton):
     """
     This class is responsible for generating a DataFrame from a text file containing a list of pmids
     """
@@ -31,10 +30,9 @@ class PubMedAPI(metaclass=Singleton):
         Overall_design: str = None
 
 
-    def __init__(self, error_callback,tqdm_callback):
+    def __init__(self):
+        super().__init__()
         self.df = None
-        self.error_callback = error_callback
-        self.tqdm_callback = tqdm_callback
         self.session = requests.Session()
         self.rows_data = []
 
@@ -75,7 +73,8 @@ class PubMedAPI(metaclass=Singleton):
 
         self.df = pd.DataFrame(self.rows_data)
         if self.df.shape[0] <=10:
-            self.error_callback("Data Frame has less than 10 rows, please provide more unique gse_codes")
+            self.notify(message="Data Frame has less than 10 rows, please provide more unique gse_codes")
+            #self.error_callback("Data Frame has less than 10 rows, please provide more unique gse_codes")
             return
         #self.df.to_csv("PubMed_data.csv", index=False)
 
@@ -116,10 +115,12 @@ class PubMedAPI(metaclass=Singleton):
             indices = response.json().get('linksets', [])[0].get('linksetdbs', [])[0].get('links', [])
             return [int(idx) for idx in indices]
         except IndexError:
-            self.error_callback(f"No datasets found for PMID: {pmid}, pmid abandoned")
+            self.notify(message=f"No datasets found for PMID: {pmid}, pmid abandoned")
+            #self.error_callback(f"No datasets found for PMID: {pmid}, pmid abandoned")
             return []
         except Exception:
-            self.error_callback(f"Error with PMID: {pmid}, pmid abandoned")
+            self.notify(message=f"Error with PMID: {pmid}, pmid abandoned")
+            #self.error_callback(f"Error with PMID: {pmid}, pmid abandoned")
             return []
 
     def _get_info(self, dataset_idx: int) -> PmData | None:
@@ -150,7 +151,8 @@ class PubMedAPI(metaclass=Singleton):
             )
             return pmid_data
         except Exception:
-            self.error_callback(f"Error with data from GSE code: {dataset_idx}, pmid abandoned")
+            self.notify(message=f"Error with data from GSE code: {dataset_idx}, pmid abandoned")
+            #self.error_callback(f"Error with data from GSE code: {dataset_idx}, pmid abandoned")
             return None
 
     def _get_overall_design(self, gse_code: str) -> str | None:
@@ -172,9 +174,10 @@ class PubMedAPI(metaclass=Singleton):
             data = xmltodict.parse(response.content)
             return data["MINiML"]["Series"].get("Overall-Design")
         except Exception:
-            self.error_callback(f"Error with getting Overall Design from GSE code: {gse_code}, pmid abandoned")
+            self.notify(message=f"Error with getting Overall Design from GSE code: {gse_code}, pmid abandoned")
+            #self.error_callback(f"Error with getting Overall Design from GSE code: {gse_code}, pmid abandoned")
             return None
-
-    def _save_to_csv(self, df: pd.DataFrame):
+    @staticmethod
+    def _save_to_csv(df: pd.DataFrame):
         df.to_csv("PubMed_data.csv", index=False)
 
