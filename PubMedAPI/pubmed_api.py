@@ -8,8 +8,9 @@ from .observer import Observable
 
 class PubMedAPI(Observable,metaclass=Singleton):
     """
-    This class is responsible for generating a DataFrame from a text file containing a list of pmids
+    This class is responsible for generating a DataFrame from a text file containing a list of pmids.
     """
+    MIN_SIZE=10
     @dataclass
     class PmData:
         """
@@ -20,7 +21,7 @@ class PubMedAPI(Observable,metaclass=Singleton):
         - Organism
         - Experiment Type
         - GSE Code
-        - Overall Design (optional)
+        - Overall Design
         """
         Title: str
         Summary: str
@@ -35,6 +36,7 @@ class PubMedAPI(Observable,metaclass=Singleton):
         self.df = None
         self.session = requests.Session()
         self.rows_data = []
+        self.pmids = []
 
     def create_dataframe(self, list_of_pmids: Optional[list[int]] = None) -> None:
         """
@@ -71,7 +73,7 @@ class PubMedAPI(Observable,metaclass=Singleton):
             self.notify(event_type="progress",measure=(idx+1)/len(self.pmids))
 
         self.df = pd.DataFrame(self.rows_data)
-        if self.df.shape[0] <=10:
+        if self.df.shape[0] <=PubMedAPI.MIN_SIZE:
             self.notify(event_type="error",message="Data Frame has less than 10 rows, please provide more unique gse_codes")
             return
         #self.df.to_csv("PubMed_data.csv", index=False)
@@ -80,7 +82,6 @@ class PubMedAPI(Observable,metaclass=Singleton):
         """
         Loads a list of PMIDs from a file named 'PMIDs_list.txt'
         """
-        self.pmids = []
         with open('PMIDs_list.txt', 'r') as f:
             for line in f:
                 line = line.strip()
@@ -126,7 +127,7 @@ class PubMedAPI(Observable,metaclass=Singleton):
 
         :param dataset_idx: The index of the dataset to retrieve.
         :return: A PmData object containing the dataset’s details, or None if
-                 the API connection fails.
+                 any problems occur.
         """
         base_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
         params = {

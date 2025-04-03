@@ -61,3 +61,5 @@ During the development of the application, I encountered a situation where the f
 .
 ```
 It may happen that a given **PMID** does not have any associated datasets. In such cases, that **PMID** is skipped.
+
+I tried using asynchronous programming to handle API requests, but it turned out that the API has a limited number of calls per second. As a result, the asynchronous approach ended up performing worse than the synchronous one.

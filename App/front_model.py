@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Preprocessing.text_preprocessing import *
 from PubMedAPI.pubmed_api import PubMedAPI
 import matplotlib.colors as mcolors
-from PubMedAPI.observer import Observer, Observable
+from PubMedAPI.observer import Observer
 
 class MainApp(Observer):
     """
@@ -33,8 +33,6 @@ class MainApp(Observer):
         """
         Some of the variables we want to save between streamlit sessions
         """
-        self.progress_bar_placeholder = None
-        self.error_placeholder = None
         if "pmid_df" not in st.session_state:
             st.session_state.pmid_df = None
         if "success_flag" not in st.session_state:
@@ -57,20 +55,19 @@ class MainApp(Observer):
             st.session_state.tfidf_processor = None
         if "tsne_processor" not in st.session_state:
             st.session_state.tsne_processor = None
-            
 
+
+        self.progress_bar_placeholder = None
+        self.error_placeholder = None
+        self.pubmed_api = PubMedAPI()
+        #adding observer to pubmed_api instance
+        self.pubmed_api.attach(self)
+        """
+        Remove_Punctuation only provides text processing without any saving any parameters so it does not need 
+        to be remembered between streamlit sessions
+        """
         st.session_state.remove_punctuation = ProcessorFactory.get_processor("remove_punctuation")
 
-        self.pubmed_api = PubMedAPI()
-        self.pubmed_api.attach(self)
-
-    def update_on_error(self,observable: Observable,*args,**kwargs):
-        if "message" in kwargs:
-            self.update_error_message(kwargs.get("message"))
-    def update_progress(self,observable: Observable,*args,**kwargs):
-
-        if "measure" in kwargs:
-            self.set_progress_bar(kwargs.get("measure"))
     # ----------------------------------- Layout App -----------------------------------
     def prepare_main_window(self) -> None:
         """
@@ -122,9 +119,9 @@ class MainApp(Observer):
         1) A Visualization tab
         2) An Information tab providing general details about the application
 
-        In the Visualization tab, you’ll find:
+        Visualization features:
         - A 3D visualization
-        - A App select box for choosing PMIDs, experiment types, and organisms
+        - A select box for choosing PMIDs, experiment types, and organisms
         - A preview of the associated DataFrame
         """
         tab_visualization, tab_info = st.tabs(["Visualization", "Info"])
@@ -181,30 +178,37 @@ class MainApp(Observer):
             with open('./App/info.md','r') as f:
                 st.markdown(f.read())
 
-    def update_error_message(self, message: str) -> None:
+    # ----------------------------------- Displaying Errors -----------------------------------
+    def update_on_error(self,*args,**kwargs):
         """
-        Function servers purpose of displaying streamlit error bar
-        It is passed as an argument to PubmedApi constructor argument in order to execute this function
-        if there would be some errors while fetching the data from API
-        """
-        self.error_placeholder.error(message)
+        Updates the error message displayed in the Streamlit application when an error occurs.
 
-    def set_progress_bar(self,val: float) -> None:
+        Parameters:
+        observable (Observable): The observable object that notifies the observer of an error.
+        **kwargs: Additional keyword arguments, expected to contain a 'message' key with the error message.
         """
-        Function for setting the progress bar, passed as an argument to PubMedApi constructor argument
-        in order to update the progress bar while fetching the data from API
+        if "message" in kwargs:
+            self.error_placeholder.error(kwargs.get("message"))
+
+    def update_progress(self,*args,**kwargs):
         """
-        self.progress_bar_placeholder.progress(val)
+        Updates the progress bar in the Streamlit application when progress is notified in PubMedAPI class.
+
+        Parameters:
+        observable (Observable): The observable object that notifies the observer of progress.
+        **kwargs: Additional keyword arguments, expected to contain a 'measure' key with the progress value.
+        """
+        if "measure" in kwargs:
+            self.progress_bar_placeholder.progress(kwargs.get("measure"))
 
     # ----------------------------------- Toy dataset handling -----------------------------------
     def handle_preloaded_dataset(self,load_toy_dataset: bool=True) -> None:
         """
-        Loads and preprocesses a toy dataset, then displays a 3D visualization.
-        If `load_toy_dataset` is False, the method retrieves a previously loaded DataFrame
-        from the deque of user datasets.
+        Handles the loading and preprocessing of a dataset.
 
-        :param load_toy_dataset: Boolean indicating whether to load the toy dataset
-                                 or use a previously loaded DataFrame instead.
+        Parameters:
+        load_toy_dataset (bool): If True, loads a toy dataset.
+                                 If False, loads a previously saved dataset st selection_box.
         """
         st.session_state.current_num_clusters = st.session_state.num_clusters
         if load_toy_dataset:
@@ -273,19 +277,20 @@ class MainApp(Observer):
                 list_of_pmids.append(int(line))
         list_of_pmids = list(set(list_of_pmids))
         if len(list_of_pmids) < MainApp.MIN_LEN_PMID_LIST:
-            self.update_error_message(message="Please enter at least 10 PMIDs.")
+            self.update_on_error(message="Please enter at least 10 PMIDs.")
             raise Exception
         return list_of_pmids
 
     def handle_user_dataset(self) -> None:
         """
-        Main function for handling PMIDs provided by the user via a .txt file.
+        Processes PMIDs provided by the user through a .txt file.
+        Displays a descriptive message if any of the underlying methods raise an error.
         """
         try:
             st.session_state.current_num_clusters = st.session_state.num_clusters
             self.reset_select_boxes()
             self.load_user_data()
-            self.set_progress_bar(0)
+            self.update_progress(measure=0)
             self.set_dataframe_from_pmids(self.pubmed_api.pmids)
             self.validate_user_preprocessing_parameters()
             self.preprocess_raw_text()
@@ -293,14 +298,14 @@ class MainApp(Observer):
             self.progress_bar_placeholder.empty()
             self.save_locally_dataset()
             st.session_state.success_flag = True
-        except Exception:
+        except Exception as e:
             return
 
     @staticmethod
     def save_locally_dataset() -> None:
         """
         Saving last 3 datasets to deque with max length 3, which later can be visualized again
-        by selecting them in selected_dataset st.select_box
+        by selecting them in st.select_box
         """
         now = datetime.datetime.now()
         idx = len(st.session_state.name_deque)
@@ -410,7 +415,7 @@ class MainApp(Observer):
         idx = 0
         color_palette_final = []
         # looping through all points in dataframe and
-        # setting opacity based on whether they were selected by user
+        # setting opacity based on whether they were selected by user or not
         for col in list_of_colors:
             if st.session_state.pmid_df["is_selected"].iloc[idx] == 1:
                 color_palette_final.append(cls.hex_to_rgba(col, alpha=1))

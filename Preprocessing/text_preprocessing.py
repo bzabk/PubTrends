@@ -12,7 +12,15 @@ class Processor(ABC):
         pass
 
 class ProcessorFactory:
-
+    """
+    Returns an instance of a processor based on the given processor name.
+    Parameters:
+    processor_name (str): The name of the processor to create.
+                          Options are "remove_punctuation", "tsne", "kmeans", "tfidf".
+    **kwargs: Additional keyword arguments to pass to the processor's constructor.
+    Returns:
+    Processor: An instance of the requested processor.
+    """
     @staticmethod
     def get_processor(processor_name,**kwargs):
         if processor_name == "remove_punctuation":
@@ -25,10 +33,19 @@ class ProcessorFactory:
             return TFIDFProcessor(**kwargs)
 
 class TextProcessor(Processor):
+    """
+    Processor class for handling text preprocessing tasks.
+
+    This class is responsible for:
+    - Concatenating relevant columns to be passed to the TF-IDF algorithm,
+    - Removing punctuation,
+    - Standardizing 'Experiment_type' strings,
+    - Setting the 'is_selected' flag for each row.
+    """
     def process(self, data):
+        data["Experiment_type"] = data["Experiment_type"].apply(self._standardize_experiment_type)
         data = self._concatenate_text(data)
         data["Text"] = data["Text"].apply(lambda x: self._remove_punctuation(x))
-        data["Experiment_type"] = data["Experiment_type"].apply(self._standardize_experiment_type)
         data = self._set_selected(data)
         return data
     @staticmethod
@@ -80,24 +97,75 @@ class TextProcessor(Processor):
         return new_text
 
 class TSNEProcessor(Processor):
-
+    """
+    Processor class for performing t-SNE dimensionality reduction on data.
+    """
     def __init__(self,perplexity=30):
+        """
+        Initializes the TSNEProcessor with a t-SNE instance.
+
+        Parameters:
+        perplexity (int): The perplexity parameter for t-SNE. Default is 30.
+        """
         self.tsne_reduction = TSNE(n_components=3,perplexity=perplexity)
     def process(self,data):
+        """
+        Applies t-SNE dimensionality reduction to the input data.
+
+        Parameters:
+        data (iterable): The input data to be reduced.
+
+        Returns:
+        numpy.ndarray: The reduced data.
+        """
         return self.tsne_reduction.fit_transform(data)
 
 class KMeansProcessor(Processor):
-
+    """
+    Processor class for performing K-Means clustering on data.
+    """
     def __init__(self,n_clusters=8):
+        """
+        Initializes the KMeansProcessor with a KMeans instance.
+
+        Parameters:
+        n_clusters (int): The number of clusters to form. Default is 8.
+        """
         self.cluster = KMeans(n_clusters=n_clusters)
     def process(self,data):
+        """
+        Applies K-Means clustering to the input data.
+
+        Parameters:
+        data (iterable): The input data to be clustered.
+
+        Returns:
+        numpy.ndarray: The cluster centers.
+        """
         self.cluster.fit_transform(data)
 
 class TFIDFProcessor(Processor):
-
+    """
+    Processor class for transforming text data into TF-IDF features.
+    """
     def __init__(self,max_features=100):
+        """
+        Initializes the TFIDFProcessor with a TfidfVectorizer.
+
+        Parameters:
+        max_features (int): The maximum number of features to consider. Default is 100.
+        """
         self.vectorizer = TfidfVectorizer(max_features=max_features, stop_words='english', min_df=2)
     def process(self,data):
+        """
+        Transforms the input data into TF-IDF features.
+
+        Parameters:
+        data (iterable): The input data to be transformed.
+
+        Returns:
+        numpy.ndarray: The transformed data as a dense array.
+        """
         return self.vectorizer.fit_transform(data).toarray()
 
 
