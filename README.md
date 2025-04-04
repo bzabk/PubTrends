@@ -25,7 +25,7 @@ The app accepts a `.txt` file as input, containing a list of **PMIDs** of intere
 21057496
 ...
 ```
-## 🔗 Data Retrieval Endpoints
+## Data Retrieval Endpoints
 
 The application uses NCBI's **e-utils API** and GEO data sources:
 
@@ -77,7 +77,7 @@ Selecting a specific PMID will highlight all associated datasets on the plot.
   <em>Highlighted data points represent GSE datasets related to the same PMID.</em>
 </p>
 
-# Instalation Guide
+## Instalation Guide
 #### Cloning Repository
 ```
    git clone https://github.com/bzabk/PubTrends.git
