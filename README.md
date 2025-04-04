@@ -15,7 +15,6 @@ containing pmids user is instered in
 21057496
 .
 .
-.
 ```
 To retrieve the data, three URLs are used:
 
@@ -49,3 +48,17 @@ Later on, TSNE algorithm is being used to reduce feature vectors to 3 dimension 
 User can filter specified medical article by selecting specific pmid, then on the plots data points which represent GEO datasets which are
 present in the same artcile will be highlighted. Ideally, these points should be close to each other in the 3D space and belong to the same cluster, which would visually confirm the consistency of clustering with respect to the original publications.
  # Instalation Guide
+#### Cloning Repository
+```
+   git clone https://github.com/bzabk/PubTrends.git
+   cd PubTrends
+```
+#### Creating virtual environment
+```
+    python -m venv venv
+    source venv/bin/activate
+```
+#### Installing dependencies
+```
+   pip install -r requirements.txt
+```
