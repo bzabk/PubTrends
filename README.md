@@ -77,22 +77,42 @@ Selecting a specific PMID will highlight all associated datasets on the plot.
   <em>Highlighted data points represent GSE datasets related to the same PMID.</em>
 </p>
 
-## Instalation Guide
+## Installation Guide (Windows)
 #### Cloning Repository
 ```
-   git clone https://github.com/bzabk/PubTrends.git
-   cd PubTrends
+git clone https://github.com/bzabk/PubTrends.git
+cd PubTrends
 ```
 #### Create a Virtual Environment
 ```
-    python -m venv venv
-    source venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 ```
 #### Installing dependencies
 ```
-   pip install -r requirements.txt
+pip install -r requirements.txt
 ```
-### Running application
+#### Running application
 ```
-   streamlit run .\main.py    
+streamlit run .\main.py    
+```
+
+## Installation Guide (Linux)
+#### Cloning Repository
+```
+git clone https://github.com/bzabk/PubTrends.git
+cd PubTrends
+```
+#### Creating a Virtual Environment
+```
+python3 -m venv venv
+source venv/bin/activate
+```
+#### Installing dependencies
+```
+pip install -r requirements.txt
+```
+#### Running application
+```
+streamlit run main.py
 ```
