@@ -56,6 +56,7 @@ class PubMedAPI(Observable,metaclass=Singleton):
             for dataset_idx in dataset_indices:
                 pmid_data = self._get_info(dataset_idx)
                 overall_design = self._get_overall_design(pmid_data.GSE_code)
+
                 if pmid_data is None or overall_design is None:
                     continue
                 row_dict = {

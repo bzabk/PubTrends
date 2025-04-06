@@ -308,8 +308,7 @@ class MainApp(Observer):
         by selecting them in st.select_box
         """
         now = datetime.datetime.now()
-        idx = len(st.session_state.name_deque)
-        st.session_state.name_deque.appendleft(f"Dataset: [{idx}] {now.strftime('%Y-%m-%d %H-%M-%S')}")
+        st.session_state.name_deque.appendleft(f"Dataset: {now.strftime('%Y-%m-%d %H-%M-%S')}")
         st.session_state.local_df_deque.appendleft(st.session_state.pmid_df)
 
 

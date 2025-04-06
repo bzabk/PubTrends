@@ -86,7 +86,7 @@ cd PubTrends
 #### Create a Virtual Environment
 ```
 python -m venv venv
-source venv/bin/activate
+.\venv\Scripts\activate
 ```
 #### Installing dependencies
 ```
