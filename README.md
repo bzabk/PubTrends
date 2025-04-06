@@ -70,8 +70,17 @@ The application uses NCBI's **e-utils API** and GEO data sources:
 
 5. Cluster the datasets based on vector proximity.
 
-6. Render a 3D interactive plot.  
+6. Render a 3D interactive plot.
+
+It is worth noting that when the number of features is small, some data points may be mapped to the same location in 3D space. 
+As a result, the 3D plot might appear to have fewer points than the data frame preview shown below.
 Selecting a specific PMID will highlight all associated datasets on the plot.
+
+During the development of my application, I encountered an issue where, for several hours, 
+the API providing datasets related to certain PMIDs stopped working—possibly for around 20 hours. 
+I assume it was due to some temporary maintenance. 
+However, it's important to note that such API downtimes are possible.
+
 <p align="center">
   <img src="App/Static/plot.png" alt="3D Dataset Clustering" width="350"><br>
   <em>Highlighted data points represent GSE datasets related to the same PMID.</em>
