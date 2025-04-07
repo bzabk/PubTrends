@@ -73,7 +73,7 @@ class PubMedAPI(Observable,metaclass=Singleton):
                 self.rows_data.append(row_dict)
             self.notify(event_type="progress",measure=(idx+1)/len(self.pmids))
 
-        self.df = pd.DataFrame(self.rows_data)
+        self.df = pd.DataFrame(self.rows_data).drop_duplicates(subset=["Pmid", "Geo_dataset_ind"])
         if self.df.shape[0] <=PubMedAPI.MIN_SIZE:
             self.notify(event_type="error",message="Data Frame has less than 10 rows, please provide more unique gse_codes")
             return
