@@ -99,7 +99,7 @@ class MainApp(Observer):
             if st.button("Load toy dataset", use_container_width=True):
                 self.handle_preloaded_dataset()
             st.text("Set parameters for TF-IDF")
-            st.session_state.max_features = st.number_input("Enter a number of features", min_value=1, max_value=200,
+            st.session_state.max_features = st.number_input("Enter a number of features", min_value=3, max_value=200,
                                                             value=10, step=1)
             st.session_state.num_clusters = st.number_input("Enter a number of clusters", min_value=1, max_value=30,
                                                             value=8, step=1)
@@ -320,6 +320,7 @@ class MainApp(Observer):
         If not, it assigns default values.
         The `perplexity` parameter must be set manually. If its value is higher than the number of data points
         in the DataFrame, t-SNE will raise an error.
+        If the user provides an incorrect value for num_features or num_clusters, the last valid parameters will be used instead.
         """
         if st.session_state.max_features is None:
             st.session_state.max_features = 10

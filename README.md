@@ -82,6 +82,11 @@ I assume it was due to some temporary maintenance.
 However, it's important to note that such API downtimes are possible.
 
 <p align="center">
+  <img src="App/Static/plot2.png" alt="3D Dataset Clustering" width="350"><br>
+  <em>3D vector space for toy dataset with number_of_features=50 and n_clusters=12</em>
+</p>
+
+<p align="center">
   <img src="App/Static/plot.png" alt="3D Dataset Clustering" width="350"><br>
   <em>Highlighted data points represent GSE datasets related to the same PMID.</em>
 </p>
