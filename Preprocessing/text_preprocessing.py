@@ -4,7 +4,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
 from abc import ABC, abstractmethod
-random.seed(42)
+
 
 class Processor(ABC):
     @abstractmethod

@@ -2,12 +2,10 @@ from collections import deque
 import numpy as np
 import streamlit as st
 import pandas as pd
-import sys
 import os
 import datetime
 import plotly.express as px
 import plotly.graph_objects as go
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Preprocessing.text_preprocessing import *
 from PubMedAPI.pubmed_api import PubMedAPI
 import matplotlib.colors as mcolors
