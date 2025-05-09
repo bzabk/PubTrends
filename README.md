@@ -7,7 +7,6 @@
 ![xmltodict](https://img.shields.io/badge/xmltodict-0.14.2-lightgrey)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-3.10.1-darkgreen)
 
-**JetBrains Summer Internship 2025 project**
 
 PubTrends is a web application that visualizes how datasets from the GEO database (GSE) related to the same medical article (PMID) are distributed in a 3D space based on semantic similarity.
 
