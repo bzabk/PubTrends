@@ -1,4 +1,6 @@
+import asyncio
 from collections import deque
+import nest_asyncio
 import numpy as np
 import streamlit as st
 import pandas as pd
@@ -10,6 +12,9 @@ from Preprocessing.text_preprocessing import *
 from PubMedAPI.pubmed_api import PubMedAPI
 import matplotlib.colors as mcolors
 from PubMedAPI.observer import Observer
+from PubMedAPI.asyncapi import AsyncDataRetriever
+
+nest_asyncio.apply()
 
 class MainApp(Observer):
     """
@@ -57,7 +62,9 @@ class MainApp(Observer):
 
         self.progress_bar_placeholder = None
         self.error_placeholder = None
+        self.load_css_styles()
         self.pubmed_api = PubMedAPI()
+        self.async_data_retriever = AsyncDataRetriever()
         #adding observer to pubmed_api instance
         self.pubmed_api.attach(self)
         """
@@ -235,16 +242,15 @@ class MainApp(Observer):
 
     # ----------------------------------- User data handling -----------------------------------
 
-    def set_dataframe_from_pmids(self, list_of_pmids) -> None:
+    async def set_dataframe_from_pmids(self, list_of_pmids) -> None:
         """
         Create a DataFrame with the following columns:
         Pmid, Geo_dataset_ind, GSE_code, Title, Summary, Overall_design, Experiment_type, Organism.
         The DataFrame is created using a list of PMIDs and `self.pubmed_api`,
         which is an instance of the PubMedAPI class.
         """
-        self.pubmed_api.pmids = list_of_pmids
-        self.pubmed_api.create_dataframe(list_of_pmids=self.pubmed_api.pmids)
-        st.session_state.pmid_df = self.pubmed_api.df
+        df = asyncio.run(self.async_data_retriever.main_async_call(list_of_pmids))
+        st.session_state.pmid_df = df
 
     def load_user_data(self) -> None:
         """
@@ -288,8 +294,8 @@ class MainApp(Observer):
             st.session_state.current_num_clusters = st.session_state.num_clusters
             self.reset_select_boxes()
             self.load_user_data()
-            self.update_progress(measure=0)
-            self.set_dataframe_from_pmids(self.pubmed_api.pmids)
+            # #self.update_progress(measure=0)
+            asyncio.run(self.set_dataframe_from_pmids(self.async_data_retriever.pmid_list))
             self.validate_user_preprocessing_parameters()
             self.preprocess_raw_text()
             self.error_placeholder.empty()
@@ -297,7 +303,7 @@ class MainApp(Observer):
             self.save_locally_dataset()
             st.session_state.success_flag = True
         except Exception as e:
-            return
+            self.update_on_error(message=str(e))
 
     @staticmethod
     def save_locally_dataset() -> None:

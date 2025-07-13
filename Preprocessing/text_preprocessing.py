@@ -43,6 +43,7 @@ class TextProcessor(Processor):
     - Setting the 'is_selected' flag for each row.
     """
     def process(self, data):
+        data = data.fillna("")
         data["Experiment_type"] = data["Experiment_type"].apply(self._standardize_experiment_type)
         data = self._concatenate_text(data)
         data["Text"] = data["Text"].apply(lambda x: self._remove_punctuation(x))
@@ -54,9 +55,12 @@ class TextProcessor(Processor):
         return data
     @staticmethod
     def _concatenate_text(data):
-        data["Text"] = data[
-            ["Title", "Summary", "Overall_design", "Experiment_type", "Organism"]
-        ].apply(lambda x: ' '.join(x), axis=1)
+        try:
+            data["Text"] = data[
+                ["Title", "Summary", "Overall_design", "Experiment_type", "Organism"]
+            ].apply(lambda x: ' '.join(x), axis=1)
+        except Exception as e:
+            print(e)
         return data
     @staticmethod
     def _remove_punctuation(text) -> str:

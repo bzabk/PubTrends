@@ -1,14 +1,16 @@
 import asyncio
+import xml.etree.ElementTree as ET
 import os
 from dataclasses import dataclass
 from time import time
 import aiohttp
 import pandas as pd
+import xmltodict
 from dotenv import load_dotenv
 
 class AsyncDataRetriever:
 
-    RETRIVAL_TIMES = 5
+    RETRIVAL_TIMES = 3
     SEMAPHORE_SIZE = 10
 
 
@@ -32,7 +34,8 @@ class AsyncDataRetriever:
         Overall_design: str = None
 
     def __init__(self):
-        load_dotenv('.env')
+        load_dotenv('./PubMedAPI/.env')
+        #load_dotenv(".env")
         self.pmid_list = []
         self._load_pmids_from_file()
         self.BASE_URL_DB_IDX = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi'
@@ -50,7 +53,7 @@ class AsyncDataRetriever:
         """
         Loads a list of PMIDs from a file named 'PMIDs_list.txt'
         """
-        with open('PMIDs_list.txt', 'r') as f:
+        with open('./PubMedAPI/PMIDs_list.txt', 'r') as f:
             for line in f:
                 line = line.strip()
                 #if line.isdigit() and int(line) not in self.pmid_list:
@@ -112,13 +115,13 @@ class AsyncDataRetriever:
         async with self.sem:
             if self.sem._value==0:
                 pass
-            for _ in range(AsyncDataRetriever.RETRIVAL_TIMES):
+            for attempt in range(1,AsyncDataRetriever.RETRIVAL_TIMES+1):
                 try:
                     response = await session.get(self.BASE_URL_OVERALL_DESIGN.format(gse_code),params=params,ssl=False)
-                    response_data = AsyncDataRetriever.overall_design_xml_parser(response)
+                    response_data = await AsyncDataRetriever.overall_design_xml_parser(response)
                     return response_data
-                except Exception:
-                    await asyncio.sleep(1)
+                except Exception as e:
+                    await asyncio.sleep(0.5*(2**attempt))
             return None
 
 
@@ -129,9 +132,9 @@ class AsyncDataRetriever:
             tasks_db = [asyncio.create_task(self._send_request_db_id(session, pmid)) for pmid in chunk]
             responses_db = await asyncio.gather(*tasks_db)
             await asyncio.sleep(0.1)
-            for pmid, response in zip(pmid_list, responses_db):
+            for pmid, response in zip(chunk, responses_db):
                 for atomic_response in response:
-                    db_rows.append({"pmid": pmid, "db_id": atomic_response})
+                    db_rows.append({"Pmid": pmid, "db_id": atomic_response})
 
         df_db = pd.DataFrame(db_rows)
         return df_db
@@ -162,7 +165,6 @@ class AsyncDataRetriever:
         overall_design_rows = []
         gse_tasks = [asyncio.create_task(self._send_request_overall_design(session, gse_code)) for gse_code in gse_set]
         gse_responses = await asyncio.gather(*gse_tasks)
-
         for gse_response, gse_code in zip(gse_responses, gse_set):
             overall_design_rows.append({
                 "GSE_code": gse_code,
@@ -176,26 +178,18 @@ class AsyncDataRetriever:
     async def main_async_call(self, pmid_list):
 
 
-        start = time()
+
         async with aiohttp.ClientSession() as session:
-
             df_db = await self._create_df_from_db_idx_api(session,pmid_list)
-
             db_list = df_db['db_id'].unique().tolist()
 
             df_info = await self._create_df_from_info_api(session,db_list)
-
-            gse_set = df_info['GSE_code']
+            gse_set = set(df_info['GSE_code'].tolist())
 
             df_overall_design = await self._create_df_from_overall_design_api(session,gse_set)
-
             final_df = self._combined_all_df(df_db,df_info,df_overall_design)
-
-
-            print(len(self.failed_pmid))
-            print(len(self.failed_db_idx))
-        end=time()
-        print(end-start)
+        final_df.to_csv("save.csv",index=False)
+        return final_df
 
     @staticmethod
     def _combined_all_df(df_db, df_info, df_overall_design):
@@ -207,7 +201,8 @@ class AsyncDataRetriever:
     @staticmethod
     async def overall_design_xml_parser(response):
         response_text = await response.text()
-        return response_text["MINiML"]["Series"].get("Overall-Design")
+        data = xmltodict.parse(response_text)
+        return data["MINiML"]["Series"].get("Overall-Design")
 
     @staticmethod
     async def summary_json_parser(response, idx):
@@ -237,9 +232,6 @@ class AsyncDataRetriever:
 
 if __name__ == "__main__":
     o = AsyncDataRetriever()
-    start = time()
     asyncio.run(o.main_async_call(o.pmid_list))
-    end = time()
-    print(end-start)
 
 
