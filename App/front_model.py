@@ -9,10 +9,10 @@ import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 from Preprocessing.text_preprocessing import *
-from PubMedAPI.pubmed_api import PubMedAPI
+from ApiClient.pubmed_api import PubMedAPI
 import matplotlib.colors as mcolors
-from PubMedAPI.observer import Observer
-from PubMedAPI.asyncapi import AsyncDataRetriever
+from ApiClient.observer import Observer
+from ApiClient.asyncapi import AsyncDataRetriever
 
 nest_asyncio.apply()
 
@@ -25,7 +25,7 @@ class MainApp(Observer):
     Attributes:
     error_placeholder (st.empty): Placeholder for displaying error messages.
     progress_bar_placeholder (st.empty): Placeholder for displaying the progress bar.
-    pubmed_api (PubMedAPI): Instance of the PubMedAPI class for fetching data from PubMed.
+    pubmed_api (ApiClient): Instance of the ApiClient class for fetching data from PubMed.
     """
     DEQUE_MAX_LENGTH = 3
     PERPLEXITY_MIN = 30
@@ -197,7 +197,7 @@ class MainApp(Observer):
 
     def update_progress(self,*args,**kwargs):
         """
-        Updates the progress bar in the Streamlit application when progress is notified in PubMedAPI class.
+        Updates the progress bar in the Streamlit application when progress is notified in ApiClient class.
 
         Parameters:
         observable (Observable): The observable object that notifies the observer of progress.
@@ -237,7 +237,7 @@ class MainApp(Observer):
         """
         Load toy dataset from csv file
         """
-        csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'PubMedAPI', 'PubMed_data.csv'))
+        csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'ApiClient', 'PubMed_data.csv'))
         st.session_state.pmid_df = pd.read_csv(csv_path)
 
     # ----------------------------------- User data handling -----------------------------------
@@ -247,7 +247,7 @@ class MainApp(Observer):
         Create a DataFrame with the following columns:
         Pmid, Geo_dataset_ind, GSE_code, Title, Summary, Overall_design, Experiment_type, Organism.
         The DataFrame is created using a list of PMIDs and `self.pubmed_api`,
-        which is an instance of the PubMedAPI class.
+        which is an instance of the ApiClient class.
         """
         df = asyncio.run(self.async_data_retriever.main_async_call(list_of_pmids))
         st.session_state.pmid_df = df
