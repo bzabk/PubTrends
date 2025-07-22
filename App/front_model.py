@@ -9,7 +9,6 @@ import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 from Preprocessing.text_preprocessing import *
-from ApiClient.pubmed_api import PubMedAPI
 import matplotlib.colors as mcolors
 from ApiClient.observer import Observer
 from ApiClient.asyncapi import AsyncDataRetriever
@@ -63,10 +62,7 @@ class MainApp(Observer):
         self.progress_bar_placeholder = None
         self.error_placeholder = None
         self.load_css_styles()
-        self.pubmed_api = PubMedAPI()
         self.async_data_retriever = AsyncDataRetriever()
-        #adding observer to pubmed_api instance
-        self.pubmed_api.attach(self)
         """
         Remove_Punctuation only provides text processing without any saving any parameters so it does not need 
         to be remembered between streamlit sessions
@@ -260,7 +256,9 @@ class MainApp(Observer):
         """
         uploaded_file = st.session_state.uploaded_file
 
-        self.pubmed_api.pmids = self.validate_chosen_file(uploaded_file)
+
+
+        #self.pubmed_api.pmids = self.validate_chosen_file(uploaded_file)
 
     def validate_chosen_file(self, uploaded_file) -> list[int] | None:
         """

@@ -3,10 +3,9 @@ from typing import Optional
 import pandas as pd
 import requests
 import xmltodict
-from .singleton import Singleton
 from .observer import Observable
 
-class PubMedAPI(Observable,metaclass=Singleton):
+class PubMedAPI(Observable):
     """
     This class is responsible for generating a DataFrame from a text file containing a list of pmids.
     """
