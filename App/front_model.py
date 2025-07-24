@@ -1,6 +1,5 @@
 import asyncio
 from collections import deque
-import nest_asyncio
 import numpy as np
 import streamlit as st
 import pandas as pd
@@ -8,14 +7,14 @@ import os
 import datetime
 import plotly.express as px
 import plotly.graph_objects as go
+
+from ApiClient.apiclient import PubMedDataRetriever
 from Preprocessing.text_preprocessing import *
 import matplotlib.colors as mcolors
-from ApiClient.observer import Observer
-from ApiClient.asyncapi import AsyncDataRetriever
 
-nest_asyncio.apply()
 
-class MainApp(Observer):
+
+class MainApp():
     """
     Main application class for the PubTrends app.
     This class handles the initialization of the App session state,
@@ -62,7 +61,7 @@ class MainApp(Observer):
         self.progress_bar_placeholder = None
         self.error_placeholder = None
         self.load_css_styles()
-        self.async_data_retriever = AsyncDataRetriever()
+        self.async_data_retriever = PubMedDataRetriever()
         """
         Remove_Punctuation only provides text processing without any saving any parameters so it does not need 
         to be remembered between streamlit sessions

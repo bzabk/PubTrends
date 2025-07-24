@@ -1,5 +1,5 @@
 import string
-import random
+from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
@@ -47,6 +47,7 @@ class TextProcessor(Processor):
         data["Experiment_type"] = data["Experiment_type"].apply(self._standardize_experiment_type)
         data = self._concatenate_text(data)
         data["Text"] = data["Text"].apply(lambda x: self._remove_punctuation(x))
+        data["Text"] = data["Text"].apply(lambda x: self._remove_stop_words(x))
         data = self._set_selected(data)
         return data
     @staticmethod
@@ -65,6 +66,10 @@ class TextProcessor(Processor):
     @staticmethod
     def _remove_punctuation(text) -> str:
         return text.translate(str.maketrans('', '', string.punctuation))
+    @staticmethod
+    def _remove_stop_words(text):
+        stop_words = set(stopwords.words('english'))
+        return ' '.join([word for word in text.split() if word.lower() not in stop_words])
     @staticmethod
     def _standardize_experiment_type(text: str) -> str:
         """
