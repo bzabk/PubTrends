@@ -1,18 +1,17 @@
 from dataclasses import dataclass
 from typing import List
-
 import pandas as pd
 import xmltodict
 
 
 @dataclass
 class PmData:
-    Title: str = None
-    Summary: str = None
-    Organism: str = None
-    Experiment_type: str = None
-    GSE_code: str = None
-    Overall_design: str = None
+    Title: str
+    Summary: str
+    Organism: str
+    Experiment_type: str
+    GSE_code: str
+    Overall_design: str
 
 async def overall_design_parser(response):
     response_text = await response.text()
@@ -44,7 +43,7 @@ def load_pmids_from_file():
                 pmid_list.add(int(line))
     return list(pmid_list)
 
-def combine_all_data_frames(df_db, df_info, df_overall_design):
+def combine_all_data_frames(df_db: pd.DataFrame, df_info: pd.DataFrame, df_overall_design: pd.DataFrame) -> pd.DataFrame:
     combined_1 = df_db.merge(df_info, on='db_idx', how='left')
     combined_2 = combined_1.merge(df_overall_design, on='GSE_code', how='left')
     return combined_2
@@ -62,7 +61,7 @@ def create_db_idx_to_info_df(db_idx_list: List[int], pmdata_list: List[PmData]) 
                          "Experiment_type": [pmdata.Experiment_type for pmdata in pmdata_list],
                          "GSE_code": [pmdata.GSE_code for pmdata in pmdata_list]})
 
-def create_gse_to_overall_design_df(gse_list, overall_design_list) -> pd.DataFrame:
+def create_gse_to_overall_design_df(gse_list: List[str], overall_design_list: List[str]) -> pd.DataFrame:
     return pd.DataFrame({"GSE_code": [gse for gse in gse_list],
                          "overall_design": [overall_design for overall_design in overall_design_list]})
 

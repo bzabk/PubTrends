@@ -8,13 +8,13 @@ import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 
-from ApiClient.apiclient import PubMedDataRetriever
-from Preprocessing.text_preprocessing import *
+from src.ApiClient.apiclient import ApiClient
+from src.Preprocessing.text_preprocessing import *
 import matplotlib.colors as mcolors
 
 
 
-class MainApp():
+class MainApp:
     """
     Main application class for the PubTrends app.
     This class handles the initialization of the App session state,
@@ -61,7 +61,7 @@ class MainApp():
         self.progress_bar_placeholder = None
         self.error_placeholder = None
         self.load_css_styles()
-        self.async_data_retriever = PubMedDataRetriever()
+        self.apiclient = ApiClient()
         """
         Remove_Punctuation only provides text processing without any saving any parameters so it does not need 
         to be remembered between streamlit sessions
@@ -244,7 +244,7 @@ class MainApp():
         The DataFrame is created using a list of PMIDs and `self.pubmed_api`,
         which is an instance of the ApiClient class.
         """
-        df = asyncio.run(self.async_data_retriever.main_async_call(list_of_pmids))
+        df = asyncio.run(self.apiclient.main_async_call(list_of_pmids))
         st.session_state.pmid_df = df
 
     def load_user_data(self) -> None:
@@ -292,7 +292,7 @@ class MainApp():
             self.reset_select_boxes()
             self.load_user_data()
             # #self.update_progress(measure=0)
-            asyncio.run(self.set_dataframe_from_pmids(self.async_data_retriever.pmid_list))
+            asyncio.run(self.set_dataframe_from_pmids(self.apiclient.pmid_list))
             self.validate_user_preprocessing_parameters()
             self.preprocess_raw_text()
             self.error_placeholder.empty()

@@ -11,7 +11,7 @@ class RedisCaching:
     def get_key(self, key: str):
         return self.client.get(key)
 
-    def check_if_exists(self,key):
+    async def check_if_exists(self,key):
         return bool(self.client.exists(key))
 
 
