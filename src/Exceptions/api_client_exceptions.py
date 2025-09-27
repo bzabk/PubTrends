@@ -6,3 +6,6 @@ class OverallDesignException(Exception):
 
 class PmidException(Exception):
     pass
+
+class ResponseStatusException(Exception):
+    pass

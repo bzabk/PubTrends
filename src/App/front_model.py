@@ -1,14 +1,18 @@
 import asyncio
+import json
 from collections import deque
+from typing import List
+
 import numpy as np
 import streamlit as st
 import pandas as pd
 import os
-import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 
+from src.ApiClient.DbCache.RedisCaching import RedisCaching
 from src.ApiClient.apiclient import ApiClient
+from src.Exceptions.front_model_exceptions import PmidTxtFileIsNone, NotEnoughPmidsInTxtFile
 from src.Preprocessing.text_preprocessing import *
 import matplotlib.colors as mcolors
 
@@ -61,7 +65,9 @@ class MainApp:
         self.progress_bar_placeholder = None
         self.error_placeholder = None
         self.load_css_styles()
-        self.apiclient = ApiClient()
+        self.redis_client = RedisCaching()
+
+        self.apiclient = ApiClient(redis_client=self.redis_client)
         """
         Remove_Punctuation only provides text processing without any saving any parameters so it does not need 
         to be remembered between streamlit sessions
@@ -87,29 +93,23 @@ class MainApp:
         - A App number_input for setting n_clusters (used by the KMeans algorithm)
         - A App selection box for choosing from the last three loaded user DataFrames
         """
+
         with st.sidebar:
             st.sidebar.title("Enter txt file with list of PMIDs", anchor="center")
             st.session_state.uploaded_file = st.file_uploader("Choose a file", type=["txt"],
                                                               accept_multiple_files=False, label_visibility="collapsed")
             if st.session_state.uploaded_file is not None:
                 if st.button("Load PMIDs file", use_container_width=True):
-
                     self.handle_user_dataset()
             st.text("or choose a toy dataset")
             if st.button("Load toy dataset", use_container_width=True):
-                self.handle_preloaded_dataset()
+                self.load_data_from_redis()
             st.text("Set parameters for TF-IDF")
             st.session_state.max_features = st.number_input("Enter a number of features", min_value=3, max_value=200,
                                                             value=10, step=1)
             st.session_state.num_clusters = st.number_input("Enter a number of clusters", min_value=1, max_value=30,
                                                             value=8, step=1)
 
-            if st.session_state.name_deque:
-                selected_dataset = st.selectbox("Previously saved datasets", st.session_state.name_deque)
-                if st.button("Load previously saved dataset"):
-                    idx = st.session_state.name_deque.index(selected_dataset)
-                    st.session_state.pmid_df = st.session_state.local_df_deque[idx]
-                    self.handle_preloaded_dataset(load_toy_dataset=False)
 
 
 
@@ -175,7 +175,7 @@ class MainApp:
                              [st.session_state.pmid_df["is_selected"] == 1])
 
         with tab_info:
-            with open('./App/info.md','r') as f:
+            with open('src/App/info.md','r') as f:
                 st.markdown(f.read())
 
     # ----------------------------------- Displaying Errors -----------------------------------
@@ -201,63 +201,36 @@ class MainApp:
         if "measure" in kwargs:
             self.progress_bar_placeholder.progress(kwargs.get("measure"))
 
-    # ----------------------------------- Toy dataset handling -----------------------------------
-    def handle_preloaded_dataset(self,load_toy_dataset: bool=True) -> None:
+    # ----------------------------------- Handling initial dataset  -----------------------------------
+
+
+    def read_initial_pmids_from_the_file(self):
+        with open('src/ApiClient/PMIDs_list.txt', 'r') as f:
+            pmids = [int(line.strip()) for line in f if line.strip().isdigit()]
+            return list(set(pmids))
+
+    def create_initial_redis_database_dump(self):
+        """
+        Creates dump.rdb file with initial dataframe that's being loaded while 'Load Toy Dataset'
+        is clicked.
+        """
+        initial_pmids = self.read_initial_pmids_from_the_file()
+        asyncio.run(self.apiclient.main_async_call(initial_pmids))
+
+    def load_data_from_redis(self):
         """
         Handles the loading and preprocessing of a dataset.
 
-        Parameters:
-        load_toy_dataset (bool): If True, loads a toy dataset.
-                                 If False, loads a previously saved dataset st selection_box.
         """
-        st.session_state.current_num_clusters = st.session_state.num_clusters
-        if load_toy_dataset:
-            self.load_toy_dataset_from_csv()
+        initial_pmids = self.read_initial_pmids_from_the_file()
+        initial_raw_data  = asyncio.run(self.redis_client.get_dataframe_from_redis(initial_pmids))
+        st.session_state.pmid_df = pd.DataFrame(initial_raw_data)
         self.validate_user_preprocessing_parameters()
         self.reset_select_boxes()
         self.preprocess_raw_text()
         st.session_state.success_flag = True
-    @staticmethod
-    def reset_select_boxes() -> None:
-        """
-        After loading a new dataset and setting a new 3D plot,
-        reset the previous selections in the select boxes.
-        """
-        st.session_state["Pmid"] = "<select>"
-        st.session_state["Organism"] = "<select>"
-        st.session_state["Experiment_type"] = "<select>"
-
-    @staticmethod
-    def load_toy_dataset_from_csv() -> None:
-        """
-        Load toy dataset from csv file
-        """
-        csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'ApiClient', 'PubMed_data.csv'))
-        st.session_state.pmid_df = pd.read_csv(csv_path)
 
     # ----------------------------------- User data handling -----------------------------------
-
-    async def set_dataframe_from_pmids(self, list_of_pmids) -> None:
-        """
-        Create a DataFrame with the following columns:
-        Pmid, Geo_dataset_ind, GSE_code, Title, Summary, Overall_design, Experiment_type, Organism.
-        The DataFrame is created using a list of PMIDs and `self.pubmed_api`,
-        which is an instance of the ApiClient class.
-        """
-        df = asyncio.run(self.apiclient.main_async_call(list_of_pmids))
-        st.session_state.pmid_df = df
-
-    def load_user_data(self) -> None:
-        """
-        Load user data from the uploaded file.
-        This method retrieves the uploaded file from the session state, validates the PMIDs in the file,
-        and updates the error message if there are fewer than 10 valid PMIDs.
-        """
-        uploaded_file = st.session_state.uploaded_file
-
-
-
-        #self.pubmed_api.pmids = self.validate_chosen_file(uploaded_file)
 
     def validate_chosen_file(self, uploaded_file) -> list[int] | None:
         """
@@ -269,6 +242,8 @@ class MainApp:
 
         :return list[int]: A list of unique PMIDs extracted from the file.
         """
+        if uploaded_file is None:
+            raise PmidTxtFileIsNone
         file_content = uploaded_file.read().decode("utf-8")
         list_of_pmids = []
         pmids = file_content.split("\n")
@@ -278,8 +253,7 @@ class MainApp:
                 list_of_pmids.append(int(line))
         list_of_pmids = list(set(list_of_pmids))
         if len(list_of_pmids) < MainApp.MIN_LEN_PMID_LIST:
-            self.update_on_error(message="Please enter at least 10 PMIDs.")
-            raise Exception
+            raise NotEnoughPmidsInTxtFile
         return list_of_pmids
 
     def handle_user_dataset(self) -> None:
@@ -288,30 +262,31 @@ class MainApp:
         Displays a descriptive message if any of the underlying methods raise an error.
         """
         try:
+            #todo seperately retrieve seen and not seen pmids
+
+            pmid_list_from_file = self.validate_chosen_file(st.session_state.uploaded_file)
+
+            pmids_not_present_in_redis = asyncio.run(self.apiclient.reduce_user_pmid_list_with_cached_data(pmid_list_from_file))
+
+            pmids_present_in_redis = list(set(pmid_list_from_file).difference(pmids_not_present_in_redis))
+
+            dataframe_from_seen_pmid = self.redis_client.get_dataframe_from_redis(pmids_present_in_redis)
+
+            dataframe_from_unseen_pmid = asyncio.run(self.apiclient.main_async_call(pmids_not_present_in_redis))
+
             st.session_state.current_num_clusters = st.session_state.num_clusters
             self.reset_select_boxes()
-            self.load_user_data()
+            #self.load_user_data()
+            self.apiclient.main_async_call()
             # #self.update_progress(measure=0)
-            asyncio.run(self.set_dataframe_from_pmids(self.apiclient.pmid_list))
-            self.validate_user_preprocessing_parameters()
-            self.preprocess_raw_text()
-            self.error_placeholder.empty()
-            self.progress_bar_placeholder.empty()
-            self.save_locally_dataset()
-            st.session_state.success_flag = True
+            # asyncio.run(self.set_dataframe_from_pmids(self.apiclient.pmid_list))
+            # self.validate_user_preprocessing_parameters()
+            # self.preprocess_raw_text()
+            # self.error_placeholder.empty()
+            # self.progress_bar_placeholder.empty()
+            # st.session_state.success_flag = True
         except Exception as e:
             self.update_on_error(message=str(e))
-
-    @staticmethod
-    def save_locally_dataset() -> None:
-        """
-        Saving last 3 datasets to deque with max length 3, which later can be visualized again
-        by selecting them in st.select_box
-        """
-        now = datetime.datetime.now()
-        st.session_state.name_deque.appendleft(f"Dataset: {now.strftime('%Y-%m-%d %H-%M-%S')}")
-        st.session_state.local_df_deque.appendleft(st.session_state.pmid_df)
-
 
     # ----------------------------------- Preprocessing -----------------------------------
     @staticmethod
@@ -330,6 +305,7 @@ class MainApp:
         n_samples = len(st.session_state.pmid_df)
         perplexity = min(MainApp.PERPLEXITY_MIN, n_samples - 1)
 
+        st.session_state.current_num_clusters = st.session_state.num_clusters
         st.session_state.tsne_processor = ProcessorFactory.get_processor("tsne",perplexity=perplexity)
         st.session_state.kmeans_processor = ProcessorFactory.get_processor("kmeans",n_clusters=st.session_state.num_clusters)
         st.session_state.tfidf_processor = ProcessorFactory.get_processor("tfidf",max_features=st.session_state.max_features)
@@ -376,6 +352,18 @@ class MainApp:
         fig.update_layout(scene=dict(xaxis_title='X',yaxis_title='Y',zaxis_title='Z'),
             width=MainApp.PLOT_WIDTH,height=MainApp.PLOT_HEIGHT,showlegend=False)
         return fig
+
+    @staticmethod
+    def reset_select_boxes() -> None:
+        """
+        After loading a new dataset and setting a new 3D plot,
+        reset the previous selections in the select boxes.
+        """
+        st.session_state["Pmid"] = "<select>"
+        st.session_state["Organism"] = "<select>"
+        st.session_state["Experiment_type"] = "<select>"
+
+
 
     @staticmethod
     def _create_hover_text(is_selected: int) -> list[str]:

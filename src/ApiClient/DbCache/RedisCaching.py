@@ -1,22 +1,29 @@
-import redis.asyncio as aioredis
+import json
+from typing import Any
 
+import redis.asyncio as aioredis
+import os
 
 class RedisCaching:
-    def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0):
-        self.client = aioredis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
-    async def set_key(self, key: str, value: str, expiration: int = None):
-        await self.client.set(key, value, ex=expiration)
-
-    def get_key(self, key: str):
-        return self.client.get(key)
+    def __init__(self):
+        host = os.getenv("REDIS_HOST", "localhost")
+        self.client = aioredis.Redis(host=host, port=6379, db=0, decode_responses=True)
 
     async def check_if_exists(self,key):
-        return bool(self.client.exists(key))
+        return bool(await self.client.exists(key))
 
+    async def sadd(self, key: str, value: str) -> int:
+        return await self.client.sadd(key, value)
 
+    async def get_dataframe_from_redis(self, indices: list[str]) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for index in indices:
+            raws = await self.client.smembers(index)
+            for raw in raws:
+                data = json.loads(raw)
+                data['Pmid'] = index
+                rows.append(data)
+        return rows
 
-if __name__ == "__main__":
-    redis = RedisCaching()
-    print(redis.check_if_exists("37871105"))
 
