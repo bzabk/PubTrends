@@ -4,7 +4,21 @@
     max-width: 350px;
 }
 
-.stTabs [role="tab"] {
-    text-align: center;
-    width: 100%;
+
+/* Center tab labels across Streamlit versions */
+[data-testid="stTabs"] .stTabs-label,
+[data-testid="stTabs"] [role="tab"],
+[data-baseweb="tab"],
+[data-testid="stTabs"] button[role="tab"] {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+}
+
+/* Center the entire tab list */
+[data-testid="stTabs"] [role="tablist"],
+[data-baseweb="tab-list"] {
+    display: flex !important;
+    justify-content: center !important;
 }

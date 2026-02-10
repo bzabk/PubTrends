@@ -14,9 +14,6 @@ from dotenv import load_dotenv
 import aiohttp
 import pandas as pd
 
-
-
-
 class ApiClient:
     load_dotenv('src/ApiClient/.env')
 
@@ -34,18 +31,17 @@ class ApiClient:
         self.failed_pmid_list = []
         self.redis_client = redis_client
 
+    async def check_api_availability(self,with_api_key=False) -> None:
 
-
-
-
-
-    async def check_api_availability(self) -> None:
-        urls = [
-            'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=gds&linkname=pubmed_gds&id=19211887&retmode=json',
-            'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gds&id=200157027&retmode=json',
-            'https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE157027&form=xml'
-        ]
-        responses = await asyncio.gather(*(self.session.get(url) for url in urls))
+        async with aiohttp.ClientSession() as session:
+            urls = [
+                'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=gds&linkname=pubmed_gds&id=19211887&retmode=json',
+                'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gds&id=200157027&retmode=json',
+                'https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE157027&form=xml'
+            ]
+            if with_api_key:
+                urls = [f"{url}&api_key={self.api_key}" for url in urls]
+            responses = await asyncio.gather(*(session.get(url) for url in urls))
         if any(resp.status !=200 for resp in responses):
             raise ResponseStatusException
 
@@ -56,7 +52,7 @@ class ApiClient:
 
         try:
             reduced_pmid_list = await self.reduce_user_pmid_list_with_cached_data(pmidlist)
-            #todo handle these pmid that are in pmidlist but arent in cached dump.rdb
+            #todo handle these pmid that are in pmidlist but aren't in cached dump.rdb
             async with aiohttp.ClientSession() as session:
                 self.session = session
                 try:
@@ -136,7 +132,9 @@ class ApiClient:
         for attempt in range(1, ApiClient._RETRIEVAL_TIMES + 5):
             try:
                 response = await self.session.get(url, params=params)
-                return await parser(response, **kwargs)
+                x = await parser(response, **kwargs)
+                print(x,flush=True)
+                return x
             except Exception as e:
                 await asyncio.sleep(1)
         raise expection_to_raise
@@ -172,6 +170,7 @@ class ApiClient:
 if __name__ == "__main__":
     async def main():
         pmid_list = load_pmids_from_file()
+        pmid_list =[19211887]
         cl = RedisCaching()
         o = ApiClient(cl)
         start = time()
