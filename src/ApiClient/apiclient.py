@@ -6,7 +6,7 @@ import traceback
 import numpy as np
 from src.ApiClient.DbCache.RedisCaching import RedisCaching
 from src.Exceptions.api_client_exceptions import InfoSummaryException, OverallDesignException, PmidException, \
-    ResponseStatusException
+    ResponseStatusException, SingleAsyncCallException
 from src.ApiClient.apiclient_utils import *
 from time import time
 from typing import List, Any, Callable
@@ -15,7 +15,6 @@ import aiohttp
 import pandas as pd
 
 class ApiClient:
-    load_dotenv('src/ApiClient/.env')
 
     _RETRIEVAL_TIMES = 3
     _SEMAPHORE_SIZE = 10
@@ -32,7 +31,7 @@ class ApiClient:
         self.redis_client = redis_client
 
     async def check_api_availability(self,with_api_key=False) -> None:
-
+        
         async with aiohttp.ClientSession() as session:
             urls = [
                 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=gds&linkname=pubmed_gds&id=19211887&retmode=json',
@@ -41,30 +40,30 @@ class ApiClient:
             ]
             if with_api_key:
                 urls = [f"{url}&api_key={self.api_key}" for url in urls]
-            responses = await asyncio.gather(*(session.get(url) for url in urls))
-        if any(resp.status !=200 for resp in responses):
-            raise ResponseStatusException
+            try:
+                responses = await asyncio.gather(*(session.get(url) for url in urls))
+                if any(resp.status !=200 for resp in responses):
+                    raise ResponseStatusException(f"One or more API endpoints returned non-200 status codes, check your internet connection and your API key")
+            except aiohttp.ClientError as e:
+                raise ResponseStatusException(f"API connection error: {str(e)}") from e
 
 
 
 
     async def main_async_call(self, pmidlist: list[int]) -> pd.DataFrame:
+        reduced_pmid_list = await self.reduce_user_pmid_list_with_cached_data(pmidlist)
+        #todo handle these pmid that are in pmidlist but aren't in cached dump.rdb
+        async with aiohttp.ClientSession() as session:
+            self.session = session
+            try:
+                await self.check_api_availability()
+                tasks = [asyncio.create_task(self.async_call_for_single_pmid(pmid_idx)) for pmid_idx in reduced_pmid_list]
+                partial_df_list = await asyncio.gather(*tasks)
+                df = stack_data_frames(partial_df_list)
+                return df
+            except ResponseStatusException:
+                pass
 
-        try:
-            reduced_pmid_list = await self.reduce_user_pmid_list_with_cached_data(pmidlist)
-            #todo handle these pmid that are in pmidlist but aren't in cached dump.rdb
-            async with aiohttp.ClientSession() as session:
-                self.session = session
-                try:
-                    await self.check_api_availability()
-                    tasks = [asyncio.create_task(self.async_call_for_single_pmid(pmid_idx)) for pmid_idx in reduced_pmid_list]
-                    partial_df_list = await asyncio.gather(*tasks)
-                    df = stack_data_frames(partial_df_list)
-                    return df
-                except ResponseStatusException:
-                    pass
-        except Exception as e:
-            pass
 
     async def async_call_for_single_pmid(self, pmid_idx: int) -> pd.DataFrame | None:
         try:
@@ -91,8 +90,7 @@ class ApiClient:
             await self.sadd_for_pmid(partial_df)
 
             return partial_df
-        except Exception as e:
-            traceback.print_exc()
+        except SingleAsyncCallException as e:
             return None
 
 
@@ -133,7 +131,6 @@ class ApiClient:
             try:
                 response = await self.session.get(url, params=params)
                 x = await parser(response, **kwargs)
-                print(x,flush=True)
                 return x
             except Exception as e:
                 await asyncio.sleep(1)
@@ -144,6 +141,7 @@ class ApiClient:
             "dbfrom": "pubmed", "db": "gds", "linkname": "pubmed_gds",
             "id": id, "retmode": "json", "api_key": self.api_key
         }
+
         async with self.semaphore:
             return await self.get_data_from_url(url=ApiClient._BASE_URL_DB_IDX,params=params,
                                                 parser=pmid_to_db_idx_parser,
