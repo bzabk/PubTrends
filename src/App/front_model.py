@@ -12,7 +12,6 @@ import pandas as pd
 from src.ApiClient.DbCache.RedisCaching import RedisCaching
 from src.ApiClient.apiclient import ApiClient
 from src.Exceptions.api_client_exceptions import ResponseStatusException
-from src.Exceptions.front_model_exceptions import PmidTxtFileIsNone, NotEnoughPmidsInTxtFile
 from src.Preprocessing.text_preprocessing import *
 
 
@@ -97,16 +96,21 @@ class MainApp:
             api_key = st.text_input('Enter your ', type="password")
             if st.button('Save api key'):
                 try:
-                    self.apiclient.api_key=api_key
+                    self.apiclient.api_key = api_key
                     asyncio.run(self.apiclient.check_api_availability(with_api_key=True))
+                    self.update_on_success(message="API key is valid and saved successfully")
                 except ResponseStatusException as e:
-                    self.error_placeholder.error(e)
+                    self.update_on_error(message=e.message)
+
             st.sidebar.title("Enter txt file with list of PMIDs", anchor="center")
             st.session_state.uploaded_file = st.file_uploader("Choose a file", type=["txt"],
                                                               accept_multiple_files=False, label_visibility="collapsed")
             if st.session_state.uploaded_file is not None:
                 if st.button("Load PMIDs file", use_container_width=True):
-                    self.handle_user_dataset()
+                    try:
+                        self.handle_user_dataset()
+                    except Exception as e:
+                        pass
             st.text("or choose a toy dataset")
             if st.button("Load toy dataset", use_container_width=True):
                 self.load_data_from_redis()
@@ -184,26 +188,14 @@ class MainApp:
 
     # ----------------------------------- Displaying Errors -----------------------------------
     def update_on_error(self,*args,**kwargs):
-        """
-        Updates the error message displayed in the Streamlit application when an error occurs.
-
-        Parameters:
-        observable (Observable): The observable object that notifies the observer of an error.
-        **kwargs: Additional keyword arguments, expected to contain a 'message' key with the error message.
-        """
-        if "message" in kwargs:
-            self.error_placeholder.error(kwargs.get("message"))
+        self.error_placeholder.error(kwargs.get("message"))
 
     def update_progress(self,*args,**kwargs):
-        """
-        Updates the progress bar in the Streamlit application when progress is notified in ApiClient class.
+        self.progress_bar_placeholder.progress(kwargs.get("measure"))
 
-        Parameters:
-        observable (Observable): The observable object that notifies the observer of progress.
-        **kwargs: Additional keyword arguments, expected to contain a 'measure' key with the progress value.
-        """
-        if "measure" in kwargs:
-            self.progress_bar_placeholder.progress(kwargs.get("measure"))
+    def update_on_success(self,*args,**kwargs):
+        self.error_placeholder.empty()
+        self.error_placeholder.success(kwargs.get("message"))
 
     # ----------------------------------- Handling initial dataset  -----------------------------------
 
@@ -232,43 +224,37 @@ class MainApp:
 
 
     def handle_user_dataset(self) -> None:
+
+        pmid_list_from_file = validate_chosen_file(st.session_state.uploaded_file,MainApp.MIN_LEN_PMID_LIST)
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            pmid_list_from_file = validate_chosen_file(st.session_state.uploaded_file,MainApp.MIN_LEN_PMID_LIST)
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                pmids_not_present_in_redis = loop.run_until_complete(
-                    self.apiclient.reduce_user_pmid_list_with_cached_data(pmid_list_from_file)
-                )
-                print(pmids_not_present_in_redis,flush=True)
-                pmids_present_in_redis = list(set(pmid_list_from_file).difference(pmids_not_present_in_redis))
-
-                dataframe_from_seen_pmid = loop.run_until_complete(
-                    self.redis_client.get_dataframe_from_redis(pmids_present_in_redis)
-                )
-
-                dataframe_from_unseen_pmid = loop.run_until_complete(
-                    self.apiclient.main_async_call(pmids_not_present_in_redis)
-                )
-            finally:
-                loop.close()
-            #todo problem with [19211887] pmid
-            st.session_state.pmid_df = pd.concat(
-                [dataframe_from_seen_pmid, dataframe_from_unseen_pmid],
-                ignore_index=True
+            pmids_not_present_in_redis = loop.run_until_complete(
+                self.apiclient.reduce_user_pmid_list_with_cached_data(pmid_list_from_file)
             )
-            st.session_state.current_num_clusters = st.session_state.num_clusters
-            validate_user_preprocessing_parameters(MainApp.PERPLEXITY_MIN)
-            reset_select_boxes()
-            preprocess_raw_text()
-            st.session_state.success_flag = True
+            pmids_present_in_redis = list(set(pmid_list_from_file).difference(pmids_not_present_in_redis))
 
-        except PmidTxtFileIsNone:
-            print('PmidTxtFileIsNone', flush=True)
-        except Exception as e:
-            print('error', flush=True)
-            self.update_on_error(message=str(e))
+            dataframe_from_seen_pmid = loop.run_until_complete(
+                self.redis_client.get_dataframe_from_redis(pmids_present_in_redis)
+            )
+
+            dataframe_from_unseen_pmid = loop.run_until_complete(
+                self.apiclient.main_async_call(pmids_not_present_in_redis)
+            )
+        finally:
+            loop.close()
+        #todo problem with [19211887] pmid
+        st.session_state.pmid_df = pd.concat(
+            [dataframe_from_seen_pmid, dataframe_from_unseen_pmid],
+            ignore_index=True
+        )
+        st.session_state.current_num_clusters = st.session_state.num_clusters
+        validate_user_preprocessing_parameters(MainApp.PERPLEXITY_MIN)
+        reset_select_boxes()
+        preprocess_raw_text()
+        st.session_state.success_flag = True
+
 
 
 
