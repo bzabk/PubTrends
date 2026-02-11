@@ -12,14 +12,17 @@ class PmData:
     Experiment_type: str
     GSE_code: str
 
+
 async def overall_design_parser(response):
     response_text = await response.text()
     data = xmltodict.parse(response_text)
     return data["MINiML"]["Series"].get("Overall-Design")
 
+
 async def pmid_to_db_idx_parser(response):
     json_response = await response.json()
     return json_response['linksets'][0]['linksetdbs'][0]['links']
+
 
 async def info_from_db_idx_parser(response, idx: int):
     json_response = await response.json()
@@ -29,10 +32,11 @@ async def info_from_db_idx_parser(response, idx: int):
         Summary=data_response['summary'],
         Organism=data_response['taxon'],
         Experiment_type=data_response['gdstype'],
-        GSE_code=data_response['accession']
+        GSE_code=data_response['accession'],
     )
-    print(pmid_data,flush=True)
+    print(pmid_data, flush=True)
     return pmid_data
+
 
 def load_pmids_from_file():
     pmid_list = set()
@@ -43,16 +47,18 @@ def load_pmids_from_file():
                 pmid_list.add(int(line))
     return list(pmid_list)
 
+
 def combine_all_data_frames(df_db: pd.DataFrame, df_info: pd.DataFrame, df_overall_design: pd.DataFrame) -> pd.DataFrame:
-    #print(df_db,flush=True)
-    #print(df_info,flush=True)
+    # print(df_db,flush=True)
+    # print(df_info,flush=True)
     df_db['db_idx'] = df_db['db_idx'].astype('int64')
     df_info['db_idx'] = df_info['db_idx'].astype('int64')
     combined_1 = df_db.merge(df_info, on='db_idx', how='left')
-    #print(combined_1,flush=True)
+    # print(combined_1,flush=True)
     combined_2 = combined_1.merge(df_overall_design, on='GSE_code', how='left')
-    #print(combined_2,flush=True)
+    # print(combined_2,flush=True)
     return combined_2
+
 
 def create_pmid_to_db_idx_df(pmid_idx: int, db_idx_list: List[int]) -> pd.DataFrame:
     df = pd.DataFrame({"Pmid": [pmid_idx] * len(db_idx_list), "db_idx": db_idx_list})
@@ -60,21 +66,24 @@ def create_pmid_to_db_idx_df(pmid_idx: int, db_idx_list: List[int]) -> pd.DataFr
 
 
 def create_db_idx_to_info_df(db_idx_list: List[int], pmdata_list: List[PmData]) -> pd.DataFrame:
-    return pd.DataFrame({"db_idx": db_idx_list,
-                         "Title": [pmdata.Title for pmdata in pmdata_list],
-                         "Summary": [pmdata.Summary for pmdata in pmdata_list],
-                         "Organism": [pmdata.Organism for pmdata in pmdata_list],
-                         "Experiment_type": [pmdata.Experiment_type for pmdata in pmdata_list],
-                         "GSE_code": [pmdata.GSE_code for pmdata in pmdata_list]})
+    return pd.DataFrame(
+        {
+            "db_idx": db_idx_list,
+            "Title": [pmdata.Title for pmdata in pmdata_list],
+            "Summary": [pmdata.Summary for pmdata in pmdata_list],
+            "Organism": [pmdata.Organism for pmdata in pmdata_list],
+            "Experiment_type": [pmdata.Experiment_type for pmdata in pmdata_list],
+            "GSE_code": [pmdata.GSE_code for pmdata in pmdata_list],
+        }
+    )
+
 
 def create_gse_to_overall_design_df(gse_list: List[str], overall_design_list: List[str]) -> pd.DataFrame:
-    return pd.DataFrame({"GSE_code": [gse for gse in gse_list],
-                         "Overall_design": [overall_design for overall_design in overall_design_list]})
+    return pd.DataFrame(
+        {"GSE_code": [gse for gse in gse_list], "Overall_design": [overall_design for overall_design in overall_design_list]}
+    )
 
 
 def stack_data_frames(list_of_data_frames: List[pd.DataFrame]) -> pd.DataFrame:
-    filtered_list_of_data_frames = list(filter(lambda x: x is not None,list_of_data_frames))
-    return pd.concat(filtered_list_of_data_frames,axis=0)
-
-
-
+    filtered_list_of_data_frames = list(filter(lambda x: x is not None, list_of_data_frames))
+    return pd.concat(filtered_list_of_data_frames, axis=0)

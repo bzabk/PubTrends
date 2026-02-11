@@ -1,6 +1,7 @@
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
-#import matplotlib.pyplot as plt
+
+# import matplotlib.pyplot as plt
 
 """
 Determine the optimal number of clusters for the KMeans algorithm on a toy dataset
@@ -10,6 +11,7 @@ These functions are not used elsewhere in the project; they were executed separa
 to establish a default value for the `n_clusters` parameter in App's number_input.
 """
 
+
 def sillhoute_method(kmax: int, X):
     sil = []
     for i in range(2, kmax + 1):
@@ -17,8 +19,9 @@ def sillhoute_method(kmax: int, X):
         kmeans.fit(X)
         labels = kmeans.labels_
         sil.append(silhouette_score(X, labels, metric='euclidean'))
-    #plt.plot(range(2, kmax + 1), sil)
-    #plt.show()
+    # plt.plot(range(2, kmax + 1), sil)
+    # plt.show()
+
 
 def inertia_method(kmax: int, X):
     wcss = []
@@ -26,9 +29,5 @@ def inertia_method(kmax: int, X):
         kmeans = KMeans(n_clusters=i)
         kmeans.fit(X)
         wcss.append(kmeans.inertia_)
-    #plt.plot(range(2, kmax + 1), wcss)
-    #plt.show()
-
-
-
-
+    # plt.plot(range(2, kmax + 1), wcss)
+    # plt.show()

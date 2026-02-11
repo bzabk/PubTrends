@@ -1,11 +1,13 @@
 import asyncio
-from src.App.front_model_utils import (reset_select_boxes,
-                                       read_initial_pmids_from_the_file,
-                                       validate_chosen_file,
-                                       load_css_styles,
-                                       load_3d_plot,
-                                       validate_user_preprocessing_parameters,
-                                       preprocess_raw_text)
+from src.App.front_model_utils import (
+    reset_select_boxes,
+    read_initial_pmids_from_the_file,
+    validate_chosen_file,
+    load_css_styles,
+    load_3d_plot,
+    validate_user_preprocessing_parameters,
+    preprocess_raw_text,
+)
 import numpy as np
 import streamlit as st
 import pandas as pd
@@ -13,7 +15,6 @@ from src.ApiClient.DbCache.RedisCaching import RedisCaching
 from src.ApiClient.apiclient import ApiClient
 from src.Exceptions.api_client_exceptions import ResponseStatusException
 from src.Preprocessing.text_preprocessing import *
-
 
 
 class MainApp:
@@ -27,10 +28,12 @@ class MainApp:
     progress_bar_placeholder (st.empty): Placeholder for displaying the progress bar.
     pubmed_api (ApiClient): Instance of the ApiClient class for fetching data from PubMed.
     """
+
     PERPLEXITY_MIN = 30
     PLOT_WIDTH = 900
     PLOT_HEIGHT = 600
     MIN_LEN_PMID_LIST = 10
+
     def __init__(self):
         """
         Some of the variables we want to save between streamlit sessions
@@ -52,7 +55,6 @@ class MainApp:
         if "tsne_processor" not in st.session_state:
             st.session_state.tsne_processor = None
 
-
         self.progress_bar_placeholder = None
         self.error_placeholder = None
         load_css_styles()
@@ -60,7 +62,7 @@ class MainApp:
 
         self.apiclient = ApiClient(redis_client=self.redis_client)
         """
-        Remove_Punctuation only provides text processing without any saving any parameters so it does not need 
+        Remove_Punctuation only provides text processing without any saving any parameters so it does not need
         to be remembered between streamlit sessions
         """
         st.session_state.remove_punctuation = ProcessorFactory.get_processor("remove_punctuation")
@@ -70,7 +72,6 @@ class MainApp:
         self.prepare_main_window()
         self.prepare_side_bar()
         self.prepare_tabs()
-
 
     def prepare_main_window(self) -> None:
         """
@@ -93,8 +94,8 @@ class MainApp:
 
         with st.sidebar:
             st.sidebar.title("Provide API key")
-            api_key = st.text_input('Enter your ', type="password")
-            if st.button('Save api key'):
+            api_key = st.text_input("Enter your ", type="password")
+            if st.button("Save api key"):
                 try:
                     self.apiclient.api_key = api_key
                     asyncio.run(self.apiclient.check_api_availability(with_api_key=True))
@@ -103,23 +104,32 @@ class MainApp:
                     self.update_on_error(message=e.message)
 
             st.sidebar.title("Enter txt file with list of PMIDs", anchor="center")
-            st.session_state.uploaded_file = st.file_uploader("Choose a file", type=["txt"],
-                                                              accept_multiple_files=False, label_visibility="collapsed")
+            st.session_state.uploaded_file = st.file_uploader(
+                "Choose a file",
+                type=["txt"],
+                accept_multiple_files=False,
+                label_visibility="collapsed",
+            )
             if st.session_state.uploaded_file is not None:
                 if st.button("Load PMIDs file", use_container_width=True):
                     try:
                         self.handle_user_dataset()
-                    except Exception as e:
+                    except Exception:
                         pass
             st.text("or choose a toy dataset")
             if st.button("Load toy dataset", use_container_width=True):
                 self.load_data_from_redis()
             st.text("Set parameters for TF-IDF")
-            st.session_state.max_features = st.number_input("Enter a number of features", min_value=3, max_value=200,
-                                                            value=10, step=1)
-            st.session_state.num_clusters = st.number_input("Enter a number of clusters", min_value=1, max_value=30,
-                                                            value=8, step=1)
-
+            st.session_state.max_features = st.number_input(
+                "Enter a number of features",
+                min_value=3,
+                max_value=200,
+                value=10,
+                step=1,
+            )
+            st.session_state.num_clusters = st.number_input(
+                "Enter a number of clusters", min_value=1, max_value=30, value=8, step=1
+            )
 
     def prepare_tabs(self) -> None:
         """
@@ -138,22 +148,30 @@ class MainApp:
                 plot_placeholder = st.empty()
                 plot_placeholder.empty()
 
-                plot_placeholder.plotly_chart(load_3d_plot(MainApp.PLOT_WIDTH,MainApp.PLOT_HEIGHT), key="3d_plot_selected")
-
+                plot_placeholder.plotly_chart(
+                    load_3d_plot(MainApp.PLOT_WIDTH, MainApp.PLOT_HEIGHT),
+                    key="3d_plot_selected",
+                )
 
                 col1, col2, col3, col4 = st.columns(4)
-                #filters
+                # filters
                 with col1:
-                    p1 = st.selectbox("Pmid",["<select>"] + sorted(st.session_state.pmid_df["Pmid"].unique().tolist()),
-                        key="Pmid"
+                    _ = st.selectbox(
+                        "Pmid",
+                        ["<select>"] + sorted(st.session_state.pmid_df["Pmid"].unique().tolist()),
+                        key="Pmid",
                     )
                 with col2:
-                    p2 = st.selectbox("Organism",["<select>"] + st.session_state.pmid_df["Organism"].unique().tolist(),
-                        key="Organism"
+                    _ = st.selectbox(
+                        "Organism",
+                        ["<select>"] + st.session_state.pmid_df["Organism"].unique().tolist(),
+                        key="Organism",
                     )
                 with col3:
-                    p3 = st.selectbox("Experiment type",["<select>"] + st.session_state.pmid_df["Experiment_type"].unique().tolist(),
-                        key="Experiment_type"
+                    _ = st.selectbox(
+                        "Experiment type",
+                        ["<select>"] + st.session_state.pmid_df["Experiment_type"].unique().tolist(),
+                        key="Experiment_type",
                     )
                 with col4:
                     if st.button("Filter"):
@@ -163,37 +181,46 @@ class MainApp:
 
                         conditions = []
                         if selected_pmid != "<select>":
-                            conditions.append(
-                                st.session_state.pmid_df["Pmid"] == selected_pmid)
+                            conditions.append(st.session_state.pmid_df["Pmid"] == selected_pmid)
                         if selected_organism != "<select>":
-                            conditions.append(
-                                st.session_state.pmid_df["Organism"] == selected_organism)
+                            conditions.append(st.session_state.pmid_df["Organism"] == selected_organism)
                         if selected_experiment_type != "<select>":
-                            conditions.append(st.session_state.pmid_df[
-                                                  "Experiment_type"] == selected_experiment_type)
+                            conditions.append(st.session_state.pmid_df["Experiment_type"] == selected_experiment_type)
                         if conditions:
-                            st.session_state.pmid_df["is_selected"] = np.logical_and.reduce(
-                                conditions).astype(int)
+                            st.session_state.pmid_df["is_selected"] = np.logical_and.reduce(conditions).astype(int)
                         else:
                             st.session_state.pmid_df["is_selected"] = 1
 
                         plot_placeholder.empty()
-                        plot_placeholder.plotly_chart(load_3d_plot(MainApp.PLOT_WIDTH,MainApp.PLOT_HEIGHT), key="3d_plot_filtered")
-                st.dataframe(st.session_state.pmid_df[['GSE_code','Title','Summary','Organism','Experiment_type','Overall_design']]
-                             [st.session_state.pmid_df["is_selected"] == 1])
+                        plot_placeholder.plotly_chart(
+                            load_3d_plot(MainApp.PLOT_WIDTH, MainApp.PLOT_HEIGHT),
+                            key="3d_plot_filtered",
+                        )
+                st.dataframe(
+                    st.session_state.pmid_df[
+                        [
+                            "GSE_code",
+                            "Title",
+                            "Summary",
+                            "Organism",
+                            "Experiment_type",
+                            "Overall_design",
+                        ]
+                    ][st.session_state.pmid_df["is_selected"] == 1]
+                )
 
         with tab_info:
-            with open('src/App/info.md','r') as f:
+            with open("src/App/info.md", "r") as f:
                 st.markdown(f.read())
 
     # ----------------------------------- Displaying Errors -----------------------------------
-    def update_on_error(self,*args,**kwargs):
+    def update_on_error(self, *args, **kwargs):
         self.error_placeholder.error(kwargs.get("message"))
 
-    def update_progress(self,*args,**kwargs):
+    def update_progress(self, *args, **kwargs):
         self.progress_bar_placeholder.progress(kwargs.get("measure"))
 
-    def update_on_success(self,*args,**kwargs):
+    def update_on_success(self, *args, **kwargs):
         self.error_placeholder.empty()
         self.error_placeholder.success(kwargs.get("message"))
 
@@ -213,7 +240,7 @@ class MainApp:
 
         """
         initial_pmids = read_initial_pmids_from_the_file()
-        initial_raw_data  = asyncio.run(self.redis_client.get_dataframe_from_redis(initial_pmids))
+        initial_raw_data = asyncio.run(self.redis_client.get_dataframe_from_redis(initial_pmids))
         st.session_state.pmid_df = pd.DataFrame(initial_raw_data)
         validate_user_preprocessing_parameters(MainApp.PERPLEXITY_MIN)
         reset_select_boxes()
@@ -222,10 +249,9 @@ class MainApp:
 
     # ----------------------------------- User data handling -----------------------------------
 
-
     def handle_user_dataset(self) -> None:
 
-        pmid_list_from_file = validate_chosen_file(st.session_state.uploaded_file,MainApp.MIN_LEN_PMID_LIST)
+        pmid_list_from_file = validate_chosen_file(st.session_state.uploaded_file, MainApp.MIN_LEN_PMID_LIST)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -239,35 +265,13 @@ class MainApp:
                 self.redis_client.get_dataframe_from_redis(pmids_present_in_redis)
             )
 
-            dataframe_from_unseen_pmid = loop.run_until_complete(
-                self.apiclient.main_async_call(pmids_not_present_in_redis)
-            )
+            dataframe_from_unseen_pmid = loop.run_until_complete(self.apiclient.main_async_call(pmids_not_present_in_redis))
         finally:
             loop.close()
-        #todo problem with [19211887] pmid
-        st.session_state.pmid_df = pd.concat(
-            [dataframe_from_seen_pmid, dataframe_from_unseen_pmid],
-            ignore_index=True
-        )
+        # todo problem with [19211887] pmid
+        st.session_state.pmid_df = pd.concat([dataframe_from_seen_pmid, dataframe_from_unseen_pmid], ignore_index=True)
         st.session_state.current_num_clusters = st.session_state.num_clusters
         validate_user_preprocessing_parameters(MainApp.PERPLEXITY_MIN)
         reset_select_boxes()
         preprocess_raw_text()
         st.session_state.success_flag = True
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

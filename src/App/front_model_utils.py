@@ -1,7 +1,10 @@
 import numpy as np
 import streamlit as st
 import matplotlib.colors as mcolors
-from src.Exceptions.front_model_exceptions import PmidTxtFileIsNone, NotEnoughPmidsInTxtFile
+from src.Exceptions.front_model_exceptions import (
+    PmidTxtFileIsNone,
+    NotEnoughPmidsInTxtFile,
+)
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -17,8 +20,9 @@ def reset_select_boxes() -> None:
     st.session_state["Organism"] = "<select>"
     st.session_state["Experiment_type"] = "<select>"
 
+
 def read_initial_pmids_from_the_file():
-    with open('src/ApiClient/PMIDs_list.txt', 'r') as f:
+    with open("src/ApiClient/PMIDs_list.txt", "r") as f:
         pmids = [int(line.strip()) for line in f if line.strip().isdigit()]
         return list(set(pmids))
 
@@ -28,7 +32,7 @@ def hex_to_rgba(hex_color, alpha) -> str:
     Converting hex color format to rgb
     """
     rgba = mcolors.to_rgba(hex_color, alpha)
-    return f'rgb({int(rgba[0] * 255)}, {int(rgba[1] * 255)}, {int(rgba[2] * 255)})'
+    return f"rgb({int(rgba[0] * 255)}, {int(rgba[1] * 255)}, {int(rgba[2] * 255)})"
 
 
 def validate_chosen_file(uploaded_file, min_len_pmid_list) -> list[int] | None:
@@ -55,24 +59,26 @@ def validate_chosen_file(uploaded_file, min_len_pmid_list) -> list[int] | None:
         raise NotEnoughPmidsInTxtFile
     return list_of_pmids
 
+
 def create_hover_text(is_selected: int) -> list[str]:
     hover_text_selected = [
-        f"<b>{row['Title']}</b><br>GSE Code: {row['GSE_code']}<br>PMID: {row['Pmid']}<br>Organism: {row['Organism']}<br>Experiment_type: {row['Experiment_type']}"
+        (
+            f"<b>{row['Title']}</b><br>GSE Code: {row['GSE_code']}<br>"
+            f"PMID: {row['Pmid']}<br>Organism: {row['Organism']}<br>"
+            f"Experiment_type: {row['Experiment_type']}"
+        )
         for _, row in st.session_state.pmid_df[st.session_state.pmid_df["is_selected"] == is_selected].iterrows()
     ]
     return hover_text_selected
+
 
 def load_css_styles() -> None:
     """
     Load CSS styles responsible for setting a fixed sidebar width.
     """
-    css_path = 'src/App/Static/style.css'
+    css_path = "src/App/Static/style.css"
     with open(css_path) as css:
         st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
-
-
-
-
 
 
 def set_colors_and_opacity() -> None:
@@ -80,12 +86,12 @@ def set_colors_and_opacity() -> None:
     Function assigns color and opacity to each label from the KMeans algorithm.
     To easly distingush points that satisfied filter conditions, points that were not selected
     """
-    unique_labels = np.arange(0, st.session_state.current_num_clusters,1).astype(str)
+    unique_labels = np.arange(0, st.session_state.current_num_clusters, 1).astype(str)
     colors = px.colors.qualitative.Alphabet
-    color_palette = colors[:len(unique_labels)]
+    color_palette = colors[: len(unique_labels)]
     # mapping from unique_labels to color
     map_dict = dict(zip(unique_labels, color_palette))
-    #assigning color to each point based on its label
+    # assigning color to each point based on its label
     list_of_colors = [map_dict[label] for label in st.session_state.current_labels]
     idx = 0
     color_palette_final = []
@@ -100,23 +106,23 @@ def set_colors_and_opacity() -> None:
     st.session_state.pmid_df["colors"] = color_palette_final
 
 
-def create_trace(is_selected: int,opacity: float,hover_text: list[str]) -> go.Scatter3d:
+def create_trace(is_selected: int, opacity: float, hover_text: list[str]) -> go.Scatter3d:
     return go.Scatter3d(
         x=st.session_state.current_X[st.session_state.pmid_df["is_selected"] == is_selected, 0],
         y=st.session_state.current_X[st.session_state.pmid_df["is_selected"] == is_selected, 1],
         z=st.session_state.current_X[st.session_state.pmid_df["is_selected"] == is_selected, 2],
-        mode='markers',
+        mode="markers",
         marker=dict(
             color=st.session_state.pmid_df["colors"][st.session_state.pmid_df["is_selected"] == is_selected],
             size=8,
-            opacity=opacity
+            opacity=opacity,
         ),
         hovertext=hover_text,
-        hoverinfo='text',
+        hoverinfo="text",
     )
 
 
-def load_3d_plot(plot_width,plot_height) -> go.Figure:
+def load_3d_plot(plot_width, plot_height) -> go.Figure:
     """
     Main function responsible for displaying interactive 3D plot visualizing
     layout of the data points in 3D space.
@@ -125,7 +131,7 @@ def load_3d_plot(plot_width,plot_height) -> go.Figure:
     """
     # setting list of colors for each point in the dataframe
     set_colors_and_opacity()
-    #creating hover text for these points that were selected by user
+    # creating hover text for these points that were selected by user
     hover_text_selected = create_hover_text(is_selected=1)
     hover_text_not_selected = create_hover_text(is_selected=0)
     # set of selected points with opacity 1
@@ -136,8 +142,12 @@ def load_3d_plot(plot_width,plot_height) -> go.Figure:
     fig.add_trace(trace1)
     fig.add_trace(trace2)
 
-    fig.update_layout(scene=dict(xaxis_title='X',yaxis_title='Y',zaxis_title='Z'),
-        width=plot_width,height=plot_height,showlegend=False)
+    fig.update_layout(
+        scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Z"),
+        width=plot_width,
+        height=plot_height,
+        showlegend=False,
+    )
     return fig
 
 
@@ -157,9 +167,9 @@ def validate_user_preprocessing_parameters(perplexity) -> None:
     perplexity = min(perplexity, n_samples - 1)
 
     st.session_state.current_num_clusters = st.session_state.num_clusters
-    st.session_state.tsne_processor = ProcessorFactory.get_processor("tsne",perplexity=perplexity)
-    st.session_state.kmeans_processor = ProcessorFactory.get_processor("kmeans",n_clusters=st.session_state.num_clusters)
-    st.session_state.tfidf_processor = ProcessorFactory.get_processor("tfidf",max_features=st.session_state.max_features)
+    st.session_state.tsne_processor = ProcessorFactory.get_processor("tsne", perplexity=perplexity)
+    st.session_state.kmeans_processor = ProcessorFactory.get_processor("kmeans", n_clusters=st.session_state.num_clusters)
+    st.session_state.tfidf_processor = ProcessorFactory.get_processor("tfidf", max_features=st.session_state.max_features)
 
 
 def preprocess_raw_text() -> None:
