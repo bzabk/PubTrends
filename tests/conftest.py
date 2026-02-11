@@ -1,8 +1,3 @@
-import sys
-import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from src.ApiClient.apiclient_utils import PmData
 from unittest.mock import AsyncMock
 import pandas as pd
