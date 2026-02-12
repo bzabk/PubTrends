@@ -66,6 +66,7 @@ class ApiClient:
                 await self.check_api_availability()
                 tasks = [asyncio.create_task(self.async_call_for_single_pmid(pmid_idx)) for pmid_idx in reduced_pmid_list]
                 partial_df_list = await asyncio.gather(*tasks)
+                print(partial_df_list,flush=True)
                 df = stack_data_frames(partial_df_list)
                 return df
             except ResponseStatusException:

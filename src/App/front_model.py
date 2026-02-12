@@ -114,8 +114,8 @@ class MainApp:
                 if st.button("Load PMIDs file", use_container_width=True):
                     try:
                         self.handle_user_dataset()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        print(e,flush=True)
             st.text("or choose a toy dataset")
             if st.button("Load toy dataset", use_container_width=True):
                 self.load_data_from_redis()
@@ -261,15 +261,29 @@ class MainApp:
             )
             pmids_present_in_redis = list(set(pmid_list_from_file).difference(pmids_not_present_in_redis))
 
-            dataframe_from_seen_pmid = loop.run_until_complete(
-                self.redis_client.get_dataframe_from_redis(pmids_present_in_redis)
-            )
-
-            dataframe_from_unseen_pmid = loop.run_until_complete(self.apiclient.main_async_call(pmids_not_present_in_redis))
+            if pmids_not_present_in_redis:
+                dataframe_not_present_in_redis = loop.run_until_complete(
+                    self.apiclient.main_async_call(pmids_not_present_in_redis)
+                )
+            else:
+                dataframe_not_present_in_redis = pd.DataFrame()
+            
+            if pmids_present_in_redis:
+                dataframe_present_in_redis = loop.run_until_complete(
+                    self.redis_client.get_dataframe_from_redis(pmids_present_in_redis)
+                )
+            else:
+                dataframe_present_in_redis = pd.DataFrame()
         finally:
             loop.close()
         # todo problem with [19211887] pmid
-        st.session_state.pmid_df = pd.concat([dataframe_from_seen_pmid, dataframe_from_unseen_pmid], ignore_index=True)
+
+        dataframe_present_in_redis = pd.DataFrame(dataframe_present_in_redis)
+        dataframe_not_present_in_redis = pd.DataFrame(dataframe_not_present_in_redis)
+
+        dfs = [df for df in (dataframe_present_in_redis, dataframe_not_present_in_redis) if not df.empty]
+        st.session_state.pmid_df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+
         st.session_state.current_num_clusters = st.session_state.num_clusters
         validate_user_preprocessing_parameters(MainApp.PERPLEXITY_MIN)
         reset_select_boxes()
