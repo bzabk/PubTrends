@@ -1,6 +1,5 @@
 import string
 
-import nltk
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
@@ -10,8 +9,9 @@ from abc import ABC, abstractmethod
 
 class Processor(ABC):
     @abstractmethod
-    def process(self,data):
+    def process(self, data):
         pass
+
 
 class ProcessorFactory:
     """
@@ -23,8 +23,9 @@ class ProcessorFactory:
     Returns:
     Processor: An instance of the requested processor.
     """
+
     @staticmethod
-    def get_processor(processor_name,**kwargs):
+    def get_processor(processor_name, **kwargs):
         if processor_name == "remove_punctuation":
             return TextProcessor()
         elif processor_name == "tsne":
@@ -33,6 +34,7 @@ class ProcessorFactory:
             return KMeansProcessor(**kwargs)
         elif processor_name == "tfidf":
             return TFIDFProcessor(**kwargs)
+
 
 class TextProcessor(Processor):
     """
@@ -44,6 +46,7 @@ class TextProcessor(Processor):
     - Standardizing 'Experiment_type' strings,
     - Setting the 'is_selected' flag for each row.
     """
+
     def process(self, data):
         data = data.fillna("")
         data["Experiment_type"] = data["Experiment_type"].apply(self._standardize_experiment_type)
@@ -52,26 +55,31 @@ class TextProcessor(Processor):
         data["Text"] = data["Text"].apply(lambda x: self._remove_stop_words(x))
         data = self._set_selected(data)
         return data
+
     @staticmethod
     def _set_selected(data):
-        data["is_selected"]=1
+        data["is_selected"] = 1
         return data
+
     @staticmethod
     def _concatenate_text(data):
         try:
-            data["Text"] = data[
-                ["Title", "Summary", "Overall_design", "Experiment_type", "Organism"]
-            ].apply(lambda x: ' '.join(x), axis=1)
+            data["Text"] = data[["Title", "Summary", "Overall_design", "Experiment_type", "Organism"]].apply(
+                lambda x: " ".join(x), axis=1
+            )
         except Exception as e:
             print(e)
         return data
+
     @staticmethod
     def _remove_punctuation(text) -> str:
-        return text.translate(str.maketrans('', '', string.punctuation))
+        return text.translate(str.maketrans("", "", string.punctuation))
+
     @staticmethod
     def _remove_stop_words(text):
-        stop_words = set(stopwords.words('english'))
-        return ' '.join([word for word in text.split() if word.lower() not in stop_words])
+        stop_words = set(stopwords.words("english"))
+        return " ".join([word for word in text.split() if word.lower() not in stop_words])
+
     @staticmethod
     def _standardize_experiment_type(text: str) -> str:
         """
@@ -107,19 +115,22 @@ class TextProcessor(Processor):
         new_text = ";".join(text)
         return new_text
 
+
 class TSNEProcessor(Processor):
     """
     Processor class for performing t-SNE dimensionality reduction on data.
     """
-    def __init__(self,perplexity=30):
+
+    def __init__(self, perplexity=30):
         """
         Initializes the TSNEProcessor with a t-SNE instance.
 
         Parameters:
         perplexity (int): The perplexity parameter for t-SNE. Default is 30.
         """
-        self.tsne_reduction = TSNE(n_components=3,perplexity=perplexity)
-    def process(self,data):
+        self.tsne_reduction = TSNE(n_components=3, perplexity=perplexity)
+
+    def process(self, data):
         """
         Applies t-SNE dimensionality reduction to the input data.
 
@@ -131,11 +142,13 @@ class TSNEProcessor(Processor):
         """
         return self.tsne_reduction.fit_transform(data)
 
+
 class KMeansProcessor(Processor):
     """
     Processor class for performing K-Means clustering on data.
     """
-    def __init__(self,n_clusters=8):
+
+    def __init__(self, n_clusters=8):
         """
         Initializes the KMeansProcessor with a KMeans instance.
 
@@ -143,7 +156,8 @@ class KMeansProcessor(Processor):
         n_clusters (int): The number of clusters to form. Default is 8.
         """
         self.cluster = KMeans(n_clusters=n_clusters)
-    def process(self,data):
+
+    def process(self, data):
         """
         Applies K-Means clustering to the input data.
 
@@ -155,19 +169,22 @@ class KMeansProcessor(Processor):
         """
         self.cluster.fit_transform(data)
 
+
 class TFIDFProcessor(Processor):
     """
     Processor class for transforming text data into TF-IDF features.
     """
-    def __init__(self,max_features=100):
+
+    def __init__(self, max_features=100):
         """
         Initializes the TFIDFProcessor with a TfidfVectorizer.
 
         Parameters:
         max_features (int): The maximum number of features to consider. Default is 100.
         """
-        self.vectorizer = TfidfVectorizer(max_features=max_features, stop_words='english', min_df=2)
-    def process(self,data):
+        self.vectorizer = TfidfVectorizer(max_features=max_features, stop_words="english", min_df=2)
+
+    def process(self, data):
         """
         Transforms the input data into TF-IDF features.
 
@@ -178,8 +195,3 @@ class TFIDFProcessor(Processor):
         numpy.ndarray: The transformed data as a dense array.
         """
         return self.vectorizer.fit_transform(data).toarray()
-
-
-
-
-

@@ -4,13 +4,14 @@ from typing import Any
 import redis.asyncio as aioredis
 import os
 
+
 class RedisCaching:
 
     def __init__(self):
         host = os.getenv("REDIS_HOST", "localhost")
         self.client = aioredis.Redis(host=host, port=6379, db=0, decode_responses=True)
 
-    async def check_if_exists(self,key):
+    async def check_if_exists(self, key):
         return bool(await self.client.exists(key))
 
     async def sadd(self, key: str, value: str) -> int:
@@ -25,5 +26,3 @@ class RedisCaching:
                 data['Pmid'] = index
                 rows.append(data)
         return rows
-
-
