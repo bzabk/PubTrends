@@ -34,7 +34,6 @@ async def info_from_db_idx_parser(response, idx: int):
         Experiment_type=data_response['gdstype'],
         GSE_code=data_response['accession'],
     )
-    print(pmid_data, flush=True)
     return pmid_data
 
 
@@ -49,14 +48,10 @@ def load_pmids_from_file():
 
 
 def combine_all_data_frames(df_db: pd.DataFrame, df_info: pd.DataFrame, df_overall_design: pd.DataFrame) -> pd.DataFrame:
-    # print(df_db,flush=True)
-    # print(df_info,flush=True)
     df_db['db_idx'] = df_db['db_idx'].astype('int64')
     df_info['db_idx'] = df_info['db_idx'].astype('int64')
     combined_1 = df_db.merge(df_info, on='db_idx', how='left')
-    # print(combined_1,flush=True)
     combined_2 = combined_1.merge(df_overall_design, on='GSE_code', how='left')
-    # print(combined_2,flush=True)
     return combined_2
 
 

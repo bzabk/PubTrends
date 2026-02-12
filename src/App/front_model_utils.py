@@ -2,8 +2,9 @@ import numpy as np
 import streamlit as st
 import matplotlib.colors as mcolors
 from src.Exceptions.front_model_exceptions import (
-    PmidTxtFileIsNone,
-    NotEnoughPmidsInTxtFile,
+    PmidTxtFileIsNoneException,
+    NotEnoughPmidsInTxtFileException,
+    EmptyDataFrameException
 )
 import plotly.express as px
 import plotly.graph_objects as go
@@ -22,7 +23,7 @@ def reset_select_boxes() -> None:
 
 
 def read_initial_pmids_from_the_file():
-    with open("src/ApiClient/PMIDs_list.txt", "r") as f:
+    with open("src/ApiClient/PMID_list_sample.txt", "r") as f:
         pmids = [int(line.strip()) for line in f if line.strip().isdigit()]
         return list(set(pmids))
 
@@ -46,7 +47,7 @@ def validate_chosen_file(uploaded_file, min_len_pmid_list) -> list[int] | None:
     :return list[int]: A list of unique PMIDs extracted from the file.
     """
     if uploaded_file is None:
-        raise PmidTxtFileIsNone
+        raise PmidTxtFileIsNoneException
     file_content = uploaded_file.read().decode("utf-8")
     list_of_pmids = []
     pmids = file_content.split("\n")
@@ -56,7 +57,7 @@ def validate_chosen_file(uploaded_file, min_len_pmid_list) -> list[int] | None:
             list_of_pmids.append(int(line))
     list_of_pmids = list(set(list_of_pmids))
     if len(list_of_pmids) < min_len_pmid_list:
-        raise NotEnoughPmidsInTxtFile
+        raise NotEnoughPmidsInTxtFileException
     return list_of_pmids
 
 

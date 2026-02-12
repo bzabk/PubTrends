@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 from asyncio import Semaphore
 import numpy as np
 from src.ApiClient.DbCache.RedisCaching import RedisCaching
@@ -27,9 +26,9 @@ class ApiClient:
     _BASE_URL_DB_IDX = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi"
     _BASE_URL_SUMMARY = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
 
-    def __init__(self, redis_client: RedisCaching):
+    def __init__(self, redis_client: RedisCaching, api_key: str | None = None):
         self.session = None
-        self.api_key = os.getenv("API_KEY")
+        self.api_key = api_key
         self.semaphore = Semaphore(ApiClient._SEMAPHORE_SIZE)
         self.failed_pmid_list = []
         self.redis_client = redis_client
@@ -38,12 +37,9 @@ class ApiClient:
 
         async with aiohttp.ClientSession() as session:
             urls = [
-                (
-                    "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi"
-                    "?dbfrom=pubmed&db=gds&linkname=pubmed_gds&id=19211887&retmode=json"
-                ),
-                ("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi" "?db=gds&id=200157027&retmode=json"),
-                ("https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi" "?acc=GSE157027&form=xml"),
+                'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=gds&linkname=pubmed_gds&id=19211887&retmode=json',
+                'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gds&id=200157027&retmode=json',
+                'https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE157027&form=xml'
             ]
             if with_api_key:
                 urls = [f"{url}&api_key={self.api_key}" for url in urls]
@@ -58,15 +54,12 @@ class ApiClient:
                 raise ResponseStatusException(f"API connection error: {str(e)}") from e
 
     async def main_async_call(self, pmidlist: list[int]) -> pd.DataFrame:
-        reduced_pmid_list = await self.reduce_user_pmid_list_with_cached_data(pmidlist)
-        # todo handle these pmid that are in pmidlist but aren't in cached dump.rdb
         async with aiohttp.ClientSession() as session:
             self.session = session
             try:
                 await self.check_api_availability()
-                tasks = [asyncio.create_task(self.async_call_for_single_pmid(pmid_idx)) for pmid_idx in reduced_pmid_list]
+                tasks = [asyncio.create_task(self.async_call_for_single_pmid(pmid_idx)) for pmid_idx in pmidlist]
                 partial_df_list = await asyncio.gather(*tasks)
-                print(partial_df_list,flush=True)
                 df = stack_data_frames(partial_df_list)
                 return df
             except ResponseStatusException:
@@ -76,25 +69,22 @@ class ApiClient:
         try:
             db_idx_list = await self.pmid_to_db_idx_layer(pmid_idx)
             df1 = create_pmid_to_db_idx_df(pmid_idx, db_idx_list)
-
             tasks_layer2 = [asyncio.create_task(self.db_idx_to_info_layer(db_idx=db_idx)) for db_idx in db_idx_list]
             pmdata_list = await asyncio.gather(*tasks_layer2)
 
             df2 = create_db_idx_to_info_df(db_idx_list, pmdata_list)
-
             gse_list = df2["GSE_code"].unique()
             tasks_layer3 = [asyncio.create_task(self.gse_code_to_overall_design(gse_code=gse_code)) for gse_code in gse_list]
 
             overall_design = await asyncio.gather(*tasks_layer3)
             df3 = create_gse_to_overall_design_df(gse_list, overall_design)
-
             partial_df = combine_all_data_frames(df1, df2, df3)
 
             await self.sadd_for_pmid(partial_df)
 
             return partial_df
         except SingleAsyncCallException:
-            return None
+            return 12
 
     async def is_data_in_cache(self, pmid: int) -> int | None:
         if await self.redis_client.check_if_exists(pmid):
@@ -151,7 +141,6 @@ class ApiClient:
             "retmode": "json",
             "api_key": self.api_key,
         }
-
         async with self.semaphore:
             return await self.get_data_from_url(
                 url=ApiClient._BASE_URL_DB_IDX,
@@ -182,19 +171,3 @@ class ApiClient:
             )
 
 
-
-if __name__ == "__main__":
-
-    async def main():
-        pmid_list = load_pmids_from_file()
-        pmid_list = [19211887]
-        cl = RedisCaching()
-        o = ApiClient(cl)
-        start = time()
-        df = await o.main_async_call(pmid_list)
-        end = time()
-        print(df)
-        print(end - start)
-        print(o.failed_pmid_list)
-
-    asyncio.run(main())
