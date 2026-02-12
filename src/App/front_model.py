@@ -14,6 +14,7 @@ import pandas as pd
 from src.ApiClient.DbCache.RedisCaching import RedisCaching
 from src.ApiClient.apiclient import ApiClient
 from src.Exceptions.api_client_exceptions import ResponseStatusException
+from src.Exceptions.front_model_exceptions import EmptyDataFrameException
 from src.Preprocessing.text_preprocessing import *
 
 
@@ -54,13 +55,15 @@ class MainApp:
             st.session_state.tfidf_processor = None
         if "tsne_processor" not in st.session_state:
             st.session_state.tsne_processor = None
+        if "api_key" not in st.session_state:
+            st.session_state.api_key = None
 
         self.progress_bar_placeholder = None
         self.error_placeholder = None
         load_css_styles()
         self.redis_client = RedisCaching()
 
-        self.apiclient = ApiClient(redis_client=self.redis_client)
+        self.apiclient = ApiClient(redis_client=self.redis_client, api_key=st.session_state.api_key)
         """
         Remove_Punctuation only provides text processing without any saving any parameters so it does not need
         to be remembered between streamlit sessions
@@ -94,9 +97,10 @@ class MainApp:
 
         with st.sidebar:
             st.sidebar.title("Provide API key")
-            api_key = st.text_input("Enter your ", type="password")
+            api_key = st.text_input("Enter your ", type="password", value=st.session_state.api_key or "")
             if st.button("Save api key"):
                 try:
+                    st.session_state.api_key = api_key
                     self.apiclient.api_key = api_key
                     asyncio.run(self.apiclient.check_api_availability(with_api_key=True))
                     self.update_on_success(message="API key is valid and saved successfully")
@@ -114,8 +118,8 @@ class MainApp:
                 if st.button("Load PMIDs file", use_container_width=True):
                     try:
                         self.handle_user_dataset()
-                    except Exception as e:
-                        print(e,flush=True)
+                    except EmptyDataFrameException as e:
+                        self.update_on_error(message=e.message)
             st.text("or choose a toy dataset")
             if st.button("Load toy dataset", use_container_width=True):
                 self.load_data_from_redis()
@@ -249,6 +253,26 @@ class MainApp:
 
     # ----------------------------------- User data handling -----------------------------------
 
+    def analyse_dataframe_not_present_in_redis(self,pmid_list,loop):
+        if pmid_list:
+            data = loop.run_until_complete(
+                self.apiclient.main_async_call(pmid_list)
+            )
+            return pd.DataFrame(data)
+        else:
+            return pd.DataFrame()
+
+
+    def analyse_dataframe_present_in_redis(self,pmid_list,loop):
+        if pmid_list:
+            data = loop.run_until_complete(
+                self.redis_client.get_dataframe_from_redis(pmid_list)
+            )
+            return pd.DataFrame(data)
+        else:
+            return pd.DataFrame()
+
+
     def handle_user_dataset(self) -> None:
 
         pmid_list_from_file = validate_chosen_file(st.session_state.uploaded_file, MainApp.MIN_LEN_PMID_LIST)
@@ -261,25 +285,16 @@ class MainApp:
             )
             pmids_present_in_redis = list(set(pmid_list_from_file).difference(pmids_not_present_in_redis))
 
-            if pmids_not_present_in_redis:
-                dataframe_not_present_in_redis = loop.run_until_complete(
-                    self.apiclient.main_async_call(pmids_not_present_in_redis)
-                )
-            else:
-                dataframe_not_present_in_redis = pd.DataFrame()
-            
-            if pmids_present_in_redis:
-                dataframe_present_in_redis = loop.run_until_complete(
-                    self.redis_client.get_dataframe_from_redis(pmids_present_in_redis)
-                )
-            else:
-                dataframe_present_in_redis = pd.DataFrame()
+            dataframe_present_in_redis = self.analyse_dataframe_present_in_redis(pmids_present_in_redis,
+                                                                                   loop)
+
+            dataframe_not_present_in_redis = self.analyse_dataframe_not_present_in_redis(pmids_not_present_in_redis,
+                                                                                   loop)
         finally:
             loop.close()
-        # todo problem with [19211887] pmid
 
-        dataframe_present_in_redis = pd.DataFrame(dataframe_present_in_redis)
-        dataframe_not_present_in_redis = pd.DataFrame(dataframe_not_present_in_redis)
+        if dataframe_present_in_redis.empty and dataframe_not_present_in_redis.empty:
+            raise EmptyDataFrameException
 
         dfs = [df for df in (dataframe_present_in_redis, dataframe_not_present_in_redis) if not df.empty]
         st.session_state.pmid_df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
