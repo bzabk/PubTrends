@@ -2,3 +2,5 @@
 .idea/
 __pycache__/
 .env
+/tests/api_tests
+/tests/db_cache_tests
