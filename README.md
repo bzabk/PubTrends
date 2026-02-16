@@ -7,8 +7,10 @@
 ![xmltodict](https://img.shields.io/badge/xmltodict-0.14.2-lightgrey)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-3.10.1-darkgreen)
 
+> **Note:** This project was developed as a submission for the **JetBrains Internship Summer 2025**.
 
-PubTrends is a web application that visualizes how datasets from the GEO database (GSE) related to the same medical article (PMID) are distributed in a 3D space based on semantic similarity.
+
+PubTrends is a web application for Jetbrains Intership Summer 2025 that visualizes how datasets from the GEO database (GSE) related to the same medical article (PMID) are distributed in a 3D space based on semantic similarity.
 
 The app accepts a `.txt` file as input, containing a list of **PMIDs** of interest:
 
@@ -90,42 +92,25 @@ However, it's important to note that such API downtimes are possible.
   <em>Highlighted data points represent GSE datasets related to the same PMID.</em>
 </p>
 
-## Installation Guide (Windows)
-#### Cloning Repository
-```
-git clone https://github.com/bzabk/PubTrends.git
-cd PubTrends
-```
-#### Create a Virtual Environment
-```
-python -m venv venv
-.\venv\Scripts\activate
-```
-#### Installing dependencies
-```
-pip install -r requirements.txt
-```
-#### Running application
-```
-streamlit run .\main.py    
-```
+## Performance Optimization
 
-## Installation Guide (Linux)
-#### Cloning Repository
-```
+During the development of my web API, two different approaches towards retrieving the data from the API were applied. The synchronous approach led to a duration of approximately 3 min for retrieving 
+100 PMIDs. Asynchronous approaches using the asyncio built-in package reduced the duration to 40 seconds for the same number of PMIDs.
+
+Change of the strategy led to a 4.5 times improvement
+
+
+
+## Installation and Running with Docker
+
+1. Clone the repository:
+```bash
 git clone https://github.com/bzabk/PubTrends.git
 cd PubTrends
 ```
-#### Creating a Virtual Environment
+2. Build and run the application using Docker:
+```bash
+docker build -t pubtrends .
+docker run -p 8501:8501 pubtrends
 ```
-python3 -m venv venv
-source venv/bin/activate
-```
-#### Installing dependencies
-```
-pip install -r requirements.txt
-```
-#### Running application
-```
-streamlit run main.py
-```
+3. The application will be available at: http://localhost:8501
