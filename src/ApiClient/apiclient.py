@@ -83,7 +83,7 @@ class ApiClient:
 
             return partial_df
         except SingleAsyncCallException:
-            return "xd"
+            return None
 
     async def is_data_in_cache(self, pmid: int) -> int | None:
         if await self.redis_client.check_if_exists(pmid):
