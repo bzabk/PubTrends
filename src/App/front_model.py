@@ -2,12 +2,11 @@ import asyncio
 
 from src.App.dataset_loading_service import DatasetLoadingService
 from src.App.preprocessing_service import PreprocessingService
+from src.App.ui_service import UIService
 from src.App.front_model_utils import (
     read_initial_pmids_from_the_file,
     load_css_styles,
-    load_3d_plot,
 )
-import numpy as np
 import streamlit as st
 from src.ApiClient.DbCache.RedisCaching import RedisCaching
 from src.ApiClient.apiclient import ApiClient
@@ -53,6 +52,7 @@ class MainApp:
             session_manager=self.session_manager,
             perplexity_min=MainApp.PERPLEXITY_MIN,
         )
+        self.ui_service = UIService()
         """
         Remove_Punctuation only provides text processing without any saving any parameters so it does not need
         to be remembered between streamlit sessions
@@ -69,10 +69,7 @@ class MainApp:
         """
         Reserving space for the app title,error messages and the progress bar.
         """
-        with st.container():
-            st.title("PubTrends: Data Insights for Enhanced Paper Relevance")
-        self.error_placeholder = st.empty()
-        self.progress_bar_placeholder = st.empty()
+        self.error_placeholder, self.progress_bar_placeholder = self.ui_service.render_main_window()
 
     def prepare_side_bar(self) -> None:
         """
@@ -84,45 +81,29 @@ class MainApp:
         - A App selection box for choosing from the last three loaded user DataFrames
         """
 
-        with st.sidebar:
-            st.sidebar.title("Provide API key")
-            api_key = st.text_input("Enter your ", type="password", value=self.session_manager.get("api_key") or "")
-            if st.button("Save api key"):
-                try:
-                    self.session_manager.set("api_key", api_key)
-                    self.apiclient.api_key = api_key
-                    asyncio.run(self.apiclient.check_api_availability(with_api_key=True))
-                    self.update_on_success(message="API key is valid and saved successfully")
-                except ResponseStatusException as e:
-                    self.update_on_error(message=e.message)
+        sidebar_state = self.ui_service.render_sidebar(self.session_manager.get("api_key"))
 
-            st.sidebar.title("Enter txt file with list of PMIDs", anchor="center")
-            self.session_manager.set("uploaded_file", st.file_uploader(
-                "Choose a file",
-                type=["txt"],
-                accept_multiple_files=False,
-                label_visibility="collapsed",
-            ))
-            if self.session_manager.get("uploaded_file") is not None:
-                if st.button("Load PMIDs file", use_container_width=True):
-                    try:
-                        self.handle_user_dataset()
-                    except NotEnoughPmidsInTxtFileException as e:
-                        self.update_on_error(message=e.message)
-            st.text("or choose a toy dataset")
-            if st.button("Load toy dataset", use_container_width=True):
-                self.load_data_from_redis()
-            st.text("Set parameters for TF-IDF")
-            self.session_manager.set("max_features", st.number_input(
-                "Enter a number of features",
-                min_value=3,
-                max_value=200,
-                value=10,
-                step=1,
-            ))
-            self.session_manager.set("num_clusters", st.number_input(
-                "Enter a number of clusters", min_value=1, max_value=30, value=8, step=1
-            ))
+        self.session_manager.set("uploaded_file", sidebar_state["uploaded_file"])
+        self.session_manager.set("max_features", sidebar_state["max_features"])
+        self.session_manager.set("num_clusters", sidebar_state["num_clusters"])
+
+        if sidebar_state["save_api_key_clicked"]:
+            try:
+                self.session_manager.set("api_key", sidebar_state["api_key"])
+                self.apiclient.api_key = sidebar_state["api_key"]
+                asyncio.run(self.apiclient.check_api_availability(with_api_key=True))
+                self.update_on_success(message="API key is valid and saved successfully")
+            except ResponseStatusException as e:
+                self.update_on_error(message=e.message)
+
+        if sidebar_state["load_pmids_clicked"]:
+            try:
+                self.handle_user_dataset()
+            except NotEnoughPmidsInTxtFileException as e:
+                self.update_on_error(message=e.message)
+
+        if sidebar_state["load_toy_clicked"]:
+            self.load_data_from_redis()
 
     def prepare_tabs(self) -> None:
         """
@@ -135,78 +116,12 @@ class MainApp:
         - A select box for choosing PMIDs, experiment types, and organisms
         - A preview of the associated DataFrame
         """
-        tab_visualization, tab_info = st.tabs(["Visualization", "Info"])
-        with tab_visualization:
-            if self.session_manager.get("success_flag"):
-                plot_placeholder = st.empty()
-                plot_placeholder.empty()
-
-                plot_placeholder.plotly_chart(
-                    load_3d_plot(MainApp.PLOT_WIDTH, MainApp.PLOT_HEIGHT),
-                    key="3d_plot_selected",
-                )
-
-                col1, col2, col3, col4 = st.columns(4)
-                # filters
-                with col1:
-                    _ = st.selectbox(
-                        "Pmid",
-                        ["<select>"] + sorted(self.session_manager.get("pmid_df")["Pmid"].unique().tolist()),
-                        key="Pmid",
-                    )
-                with col2:
-                    _ = st.selectbox(
-                        "Organism",
-                        ["<select>"] + self.session_manager.get("pmid_df")["Organism"].unique().tolist(),
-                        key="Organism",
-                    )
-                with col3:
-                    _ = st.selectbox(
-                        "Experiment type",
-                        ["<select>"] + self.session_manager.get("pmid_df")["Experiment_type"].unique().tolist(),
-                        key="Experiment_type",
-                    )
-                with col4:
-                    if st.button("Filter"):
-                        selected_pmid = self.session_manager.get("Pmid")
-                        selected_organism = self.session_manager.get("Organism")
-                        selected_experiment_type = self.session_manager.get("Experiment_type")
-
-                        conditions = []
-                        pmid_df = self.session_manager.get("pmid_df")
-                        if selected_pmid != "<select>":
-                            conditions.append(pmid_df["Pmid"] == selected_pmid)
-                        if selected_organism != "<select>":
-                            conditions.append(pmid_df["Organism"] == selected_organism)
-                        if selected_experiment_type != "<select>":
-                            conditions.append(pmid_df["Experiment_type"] == selected_experiment_type)
-                        if conditions:
-                            pmid_df["is_selected"] = np.logical_and.reduce(conditions).astype(int)
-                        else:
-                            pmid_df["is_selected"] = 1
-                        self.session_manager.set("pmid_df", pmid_df)
-
-                        plot_placeholder.empty()
-                        plot_placeholder.plotly_chart(
-                            load_3d_plot(MainApp.PLOT_WIDTH, MainApp.PLOT_HEIGHT),
-                            key="3d_plot_filtered",
-                        )
-                st.dataframe(
-                    self.session_manager.get("pmid_df")[
-                        [
-                            "GSE_code",
-                            "Title",
-                            "Summary",
-                            "Organism",
-                            "Experiment_type",
-                            "Overall_design",
-                        ]
-                    ][self.session_manager.get("pmid_df")["is_selected"] == 1]
-                )
-
-        with tab_info:
-            with open("src/App/info.md", "r") as f:
-                st.markdown(f.read())
+        self.ui_service.render_tabs(
+            session_manager=self.session_manager,
+            plot_width=MainApp.PLOT_WIDTH,
+            plot_height=MainApp.PLOT_HEIGHT,
+            info_file_path="src/App/info.md",
+        )
 
     # ----------------------------------- Displaying Errors -----------------------------------
     def update_on_error(self, *args, **kwargs):
