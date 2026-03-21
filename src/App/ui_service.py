@@ -5,6 +5,10 @@ from src.App.front_model_utils import load_3d_plot
 
 
 class UIService:
+
+    PLOT_WIDTH = 900
+    PLOT_HEIGHT = 600
+
     def render_main_window(self):
         with st.container():
             st.title("PubTrends: Data Insights for Enhanced Paper Relevance")
@@ -52,7 +56,7 @@ class UIService:
             "num_clusters": num_clusters,
         }
 
-    def render_tabs(self, session_manager, plot_width, plot_height, info_file_path: str):
+    def render_tabs(self, session_manager, info_file_path: str):
         tab_visualization, tab_info = st.tabs(["Visualization", "Info"])
 
         with tab_visualization:
@@ -61,7 +65,7 @@ class UIService:
                 plot_placeholder.empty()
 
                 plot_placeholder.plotly_chart(
-                    load_3d_plot(plot_width, plot_height),
+                    load_3d_plot(UIService.PLOT_WIDTH, UIService.PLOT_HEIGHT),
                     key="3d_plot_selected",
                 )
 
@@ -103,7 +107,7 @@ class UIService:
 
                         plot_placeholder.empty()
                         plot_placeholder.plotly_chart(
-                            load_3d_plot(plot_width, plot_height),
+                            load_3d_plot(UIService.PLOT_WIDTH, UIService.PLOT_HEIGHT),
                             key="3d_plot_filtered",
                         )
 

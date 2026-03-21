@@ -6,6 +6,8 @@ from src.Exceptions.front_model_exceptions import EmptyDataFrameException
 
 
 class DatasetLoadingService:
+    MIN_LEN_PMID_LIST = 10
+
     def __init__(self, apiclient, redis_client):
         self.apiclient = apiclient
         self.redis_client = redis_client
@@ -14,8 +16,8 @@ class DatasetLoadingService:
         initial_raw_data = asyncio.run(self.redis_client.get_dataframe_from_redis(initial_pmids))
         return pd.DataFrame(initial_raw_data)
 
-    def load_user_dataset(self, uploaded_file, min_len_pmid_list: int) -> pd.DataFrame:
-        pmid_list_from_file = validate_chosen_file(uploaded_file, min_len_pmid_list)
+    def load_user_dataset(self, uploaded_file) -> pd.DataFrame:
+        pmid_list_from_file = validate_chosen_file(uploaded_file, DatasetLoadingService.MIN_LEN_PMID_LIST)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
