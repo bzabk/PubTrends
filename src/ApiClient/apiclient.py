@@ -11,7 +11,6 @@ from src.Exceptions.api_client_exceptions import (
     SingleAsyncCallException,
 )
 from src.ApiClient.apiclient_utils import *
-from time import time
 from typing import List, Any, Callable
 import aiohttp
 import pandas as pd
@@ -84,7 +83,7 @@ class ApiClient:
 
             return partial_df
         except SingleAsyncCallException:
-            return 12
+            return "xd"
 
     async def is_data_in_cache(self, pmid: int) -> int | None:
         if await self.redis_client.check_if_exists(pmid):

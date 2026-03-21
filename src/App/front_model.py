@@ -1,7 +1,10 @@
 import asyncio
+
+from src.App.dataset_loading_service import DatasetLoadingService
 from src.App.front_model_utils import (
     reset_select_boxes,
     read_initial_pmids_from_the_file,
+    validate_chosen_file,
     load_css_styles,
     load_3d_plot,
     validate_user_preprocessing_parameters,
@@ -11,10 +14,10 @@ import numpy as np
 import streamlit as st
 from src.ApiClient.DbCache.RedisCaching import RedisCaching
 from src.ApiClient.apiclient import ApiClient
-from src.App.dataset_loading_service import DatasetLoadingService
 from src.App.statemanager import SessionStateManager
 from src.Exceptions.api_client_exceptions import ResponseStatusException
-from src.Exceptions.front_model_exceptions import EmptyDataFrameException
+from src.Exceptions.front_model_exceptions import EmptyDataFrameException, NotEnoughPmidsInTxtFileException, \
+    FileValidationError
 from src.Preprocessing.text_preprocessing import *
 
 
@@ -104,7 +107,7 @@ class MainApp:
                 if st.button("Load PMIDs file", use_container_width=True):
                     try:
                         self.handle_user_dataset()
-                    except EmptyDataFrameException as e:
+                    except NotEnoughPmidsInTxtFileException as e:
                         self.update_on_error(message=e.message)
             st.text("or choose a toy dataset")
             if st.button("Load toy dataset", use_container_width=True):
