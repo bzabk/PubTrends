@@ -2,7 +2,6 @@ import asyncio
 from src.App.front_model_utils import (
     reset_select_boxes,
     read_initial_pmids_from_the_file,
-    validate_chosen_file,
     load_css_styles,
     load_3d_plot,
     validate_user_preprocessing_parameters,
@@ -10,9 +9,10 @@ from src.App.front_model_utils import (
 )
 import numpy as np
 import streamlit as st
-import pandas as pd
 from src.ApiClient.DbCache.RedisCaching import RedisCaching
 from src.ApiClient.apiclient import ApiClient
+from src.App.dataset_loading_service import DatasetLoadingService
+from src.App.statemanager import SessionStateManager
 from src.Exceptions.api_client_exceptions import ResponseStatusException
 from src.Exceptions.front_model_exceptions import EmptyDataFrameException
 from src.Preprocessing.text_preprocessing import *
@@ -39,36 +39,22 @@ class MainApp:
         """
         Some of the variables we want to save between streamlit sessions
         """
-        if "pmid_df" not in st.session_state:
-            st.session_state.pmid_df = None
-        if "success_flag" not in st.session_state:
-            st.session_state.success_flag = False
-        if "uploaded_file" not in st.session_state:
-            st.session_state.uploaded_file = None
-        if "current_labels" not in st.session_state:
-            st.session_state.current_labels = None
-        if "current_X" not in st.session_state:
-            st.session_state.current_X = None
-        if "kmeans_processor" not in st.session_state:
-            st.session_state.kmeans_processor = None
-        if "tfidf_processor" not in st.session_state:
-            st.session_state.tfidf_processor = None
-        if "tsne_processor" not in st.session_state:
-            st.session_state.tsne_processor = None
-        if "api_key" not in st.session_state:
-            st.session_state.api_key = None
-
         self.progress_bar_placeholder = None
         self.error_placeholder = None
         load_css_styles()
+        self.session_manager = SessionStateManager(st.session_state)
         self.redis_client = RedisCaching()
 
-        self.apiclient = ApiClient(redis_client=self.redis_client, api_key=st.session_state.api_key)
+        self.apiclient = ApiClient(redis_client=self.redis_client,
+                                   api_key=self.session_manager.get("api_key"))
+
+        self.dataset_loading_service = DatasetLoadingService(apiclient=self.apiclient,
+                                                             redis_client=self.redis_client)
         """
         Remove_Punctuation only provides text processing without any saving any parameters so it does not need
         to be remembered between streamlit sessions
         """
-        st.session_state.remove_punctuation = ProcessorFactory.get_processor("remove_punctuation")
+        self.session_manager.set("remove_punctuation", ProcessorFactory.get_processor("remove_punctuation"))
 
     # ----------------------------------- Layout App -----------------------------------
     def run(self):
@@ -97,10 +83,10 @@ class MainApp:
 
         with st.sidebar:
             st.sidebar.title("Provide API key")
-            api_key = st.text_input("Enter your ", type="password", value=st.session_state.api_key or "")
+            api_key = st.text_input("Enter your ", type="password", value=self.session_manager.get("api_key") or "")
             if st.button("Save api key"):
                 try:
-                    st.session_state.api_key = api_key
+                    self.session_manager.set("api_key", api_key)
                     self.apiclient.api_key = api_key
                     asyncio.run(self.apiclient.check_api_availability(with_api_key=True))
                     self.update_on_success(message="API key is valid and saved successfully")
@@ -108,13 +94,13 @@ class MainApp:
                     self.update_on_error(message=e.message)
 
             st.sidebar.title("Enter txt file with list of PMIDs", anchor="center")
-            st.session_state.uploaded_file = st.file_uploader(
+            self.session_manager.set("uploaded_file", st.file_uploader(
                 "Choose a file",
                 type=["txt"],
                 accept_multiple_files=False,
                 label_visibility="collapsed",
-            )
-            if st.session_state.uploaded_file is not None:
+            ))
+            if self.session_manager.get("uploaded_file") is not None:
                 if st.button("Load PMIDs file", use_container_width=True):
                     try:
                         self.handle_user_dataset()
@@ -124,16 +110,16 @@ class MainApp:
             if st.button("Load toy dataset", use_container_width=True):
                 self.load_data_from_redis()
             st.text("Set parameters for TF-IDF")
-            st.session_state.max_features = st.number_input(
+            self.session_manager.set("max_features", st.number_input(
                 "Enter a number of features",
                 min_value=3,
                 max_value=200,
                 value=10,
                 step=1,
-            )
-            st.session_state.num_clusters = st.number_input(
+            ))
+            self.session_manager.set("num_clusters", st.number_input(
                 "Enter a number of clusters", min_value=1, max_value=30, value=8, step=1
-            )
+            ))
 
     def prepare_tabs(self) -> None:
         """
@@ -148,7 +134,7 @@ class MainApp:
         """
         tab_visualization, tab_info = st.tabs(["Visualization", "Info"])
         with tab_visualization:
-            if st.session_state.success_flag:
+            if self.session_manager.get("success_flag"):
                 plot_placeholder = st.empty()
                 plot_placeholder.empty()
 
@@ -162,38 +148,40 @@ class MainApp:
                 with col1:
                     _ = st.selectbox(
                         "Pmid",
-                        ["<select>"] + sorted(st.session_state.pmid_df["Pmid"].unique().tolist()),
+                        ["<select>"] + sorted(self.session_manager.get("pmid_df")["Pmid"].unique().tolist()),
                         key="Pmid",
                     )
                 with col2:
                     _ = st.selectbox(
                         "Organism",
-                        ["<select>"] + st.session_state.pmid_df["Organism"].unique().tolist(),
+                        ["<select>"] + self.session_manager.get("pmid_df")["Organism"].unique().tolist(),
                         key="Organism",
                     )
                 with col3:
                     _ = st.selectbox(
                         "Experiment type",
-                        ["<select>"] + st.session_state.pmid_df["Experiment_type"].unique().tolist(),
+                        ["<select>"] + self.session_manager.get("pmid_df")["Experiment_type"].unique().tolist(),
                         key="Experiment_type",
                     )
                 with col4:
                     if st.button("Filter"):
-                        selected_pmid = st.session_state["Pmid"]
-                        selected_organism = st.session_state["Organism"]
-                        selected_experiment_type = st.session_state["Experiment_type"]
+                        selected_pmid = self.session_manager.get("Pmid")
+                        selected_organism = self.session_manager.get("Organism")
+                        selected_experiment_type = self.session_manager.get("Experiment_type")
 
                         conditions = []
+                        pmid_df = self.session_manager.get("pmid_df")
                         if selected_pmid != "<select>":
-                            conditions.append(st.session_state.pmid_df["Pmid"] == selected_pmid)
+                            conditions.append(pmid_df["Pmid"] == selected_pmid)
                         if selected_organism != "<select>":
-                            conditions.append(st.session_state.pmid_df["Organism"] == selected_organism)
+                            conditions.append(pmid_df["Organism"] == selected_organism)
                         if selected_experiment_type != "<select>":
-                            conditions.append(st.session_state.pmid_df["Experiment_type"] == selected_experiment_type)
+                            conditions.append(pmid_df["Experiment_type"] == selected_experiment_type)
                         if conditions:
-                            st.session_state.pmid_df["is_selected"] = np.logical_and.reduce(conditions).astype(int)
+                            pmid_df["is_selected"] = np.logical_and.reduce(conditions).astype(int)
                         else:
-                            st.session_state.pmid_df["is_selected"] = 1
+                            pmid_df["is_selected"] = 1
+                        self.session_manager.set("pmid_df", pmid_df)
 
                         plot_placeholder.empty()
                         plot_placeholder.plotly_chart(
@@ -201,7 +189,7 @@ class MainApp:
                             key="3d_plot_filtered",
                         )
                 st.dataframe(
-                    st.session_state.pmid_df[
+                    self.session_manager.get("pmid_df")[
                         [
                             "GSE_code",
                             "Title",
@@ -210,7 +198,7 @@ class MainApp:
                             "Experiment_type",
                             "Overall_design",
                         ]
-                    ][st.session_state.pmid_df["is_selected"] == 1]
+                    ][self.session_manager.get("pmid_df")["is_selected"] == 1]
                 )
 
         with tab_info:
@@ -244,63 +232,24 @@ class MainApp:
 
         """
         initial_pmids = read_initial_pmids_from_the_file()
-        initial_raw_data = asyncio.run(self.redis_client.get_dataframe_from_redis(initial_pmids))
-        st.session_state.pmid_df = pd.DataFrame(initial_raw_data)
+        self.session_manager.set("pmid_df", self.dataset_loading_service.load_initial_dataset_from_redis(initial_pmids))
         validate_user_preprocessing_parameters(MainApp.PERPLEXITY_MIN)
         reset_select_boxes()
         preprocess_raw_text()
-        st.session_state.success_flag = True
+        self.session_manager.set("success_flag", True)
 
     # ----------------------------------- User data handling -----------------------------------
-
-    def analyse_dataframe_not_present_in_redis(self,pmid_list,loop):
-        if pmid_list:
-            data = loop.run_until_complete(
-                self.apiclient.main_async_call(pmid_list)
-            )
-            return pd.DataFrame(data)
-        else:
-            return pd.DataFrame()
-
-
-    def analyse_dataframe_present_in_redis(self,pmid_list,loop):
-        if pmid_list:
-            data = loop.run_until_complete(
-                self.redis_client.get_dataframe_from_redis(pmid_list)
-            )
-            return pd.DataFrame(data)
-        else:
-            return pd.DataFrame()
-
-
     def handle_user_dataset(self) -> None:
+        self.session_manager.set(
+            "pmid_df",
+            self.dataset_loading_service.load_user_dataset(
+                uploaded_file=self.session_manager.get("uploaded_file"),
+                min_len_pmid_list=MainApp.MIN_LEN_PMID_LIST,
+            ),
+        )
 
-        pmid_list_from_file = validate_chosen_file(st.session_state.uploaded_file, MainApp.MIN_LEN_PMID_LIST)
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            pmids_not_present_in_redis = loop.run_until_complete(
-                self.apiclient.reduce_user_pmid_list_with_cached_data(pmid_list_from_file)
-            )
-            pmids_present_in_redis = list(set(pmid_list_from_file).difference(pmids_not_present_in_redis))
-
-            dataframe_present_in_redis = self.analyse_dataframe_present_in_redis(pmids_present_in_redis,
-                                                                                   loop)
-
-            dataframe_not_present_in_redis = self.analyse_dataframe_not_present_in_redis(pmids_not_present_in_redis,
-                                                                                   loop)
-        finally:
-            loop.close()
-
-        if dataframe_present_in_redis.empty and dataframe_not_present_in_redis.empty:
-            raise EmptyDataFrameException
-
-        dfs = [df for df in (dataframe_present_in_redis, dataframe_not_present_in_redis) if not df.empty]
-        st.session_state.pmid_df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
-
-        st.session_state.current_num_clusters = st.session_state.num_clusters
+        self.session_manager.set("current_num_clusters", self.session_manager.get("num_clusters"))
         validate_user_preprocessing_parameters(MainApp.PERPLEXITY_MIN)
         reset_select_boxes()
         preprocess_raw_text()
-        st.session_state.success_flag = True
+        self.session_manager.set("success_flag", True)
