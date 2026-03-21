@@ -23,3 +23,5 @@ class ResponseStatusException(Exception):
     def __init__(self, message="Invalid API response status"):
         self.message = message
         super().__init__(self.message)
+
+

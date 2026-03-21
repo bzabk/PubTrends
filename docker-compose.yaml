@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   streamlit-app:
     build: .
@@ -7,14 +5,16 @@ services:
       - "8501:8501"
     depends_on:
       - redis-db
+    working_dir: /streamlit_app
+    volumes:
+      - .:/streamlit_app
     environment:
       - REDIS_HOST=redis-db
+      - STREAMLIT_SERVER_RUN_ON_SAVE=true
+      - STREAMLIT_SERVER_FILE_WATCHER_TYPE=poll
   redis-db:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     ports:
       - "6379:6379"
     volumes:
       - ./src/ApiClient/RedisData:/data
-
-
-

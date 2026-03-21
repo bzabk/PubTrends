@@ -23,7 +23,7 @@ def reset_select_boxes() -> None:
 
 
 def read_initial_pmids_from_the_file():
-    with open("src/ApiClient/PMID_list_sample.txt", "r") as f:
+    with open("src/ApiClient/PMIDs_list.txt", "r") as f:
         pmids = [int(line.strip()) for line in f if line.strip().isdigit()]
         return list(set(pmids))
 
