@@ -1,14 +1,11 @@
 import asyncio
 
 from src.App.dataset_loading_service import DatasetLoadingService
+from src.App.preprocessing_service import PreprocessingService
 from src.App.front_model_utils import (
-    reset_select_boxes,
     read_initial_pmids_from_the_file,
-    validate_chosen_file,
     load_css_styles,
     load_3d_plot,
-    validate_user_preprocessing_parameters,
-    preprocess_raw_text,
 )
 import numpy as np
 import streamlit as st
@@ -16,8 +13,7 @@ from src.ApiClient.DbCache.RedisCaching import RedisCaching
 from src.ApiClient.apiclient import ApiClient
 from src.App.statemanager import SessionStateManager
 from src.Exceptions.api_client_exceptions import ResponseStatusException
-from src.Exceptions.front_model_exceptions import EmptyDataFrameException, NotEnoughPmidsInTxtFileException, \
-    FileValidationError
+from src.Exceptions.front_model_exceptions import NotEnoughPmidsInTxtFileException
 from src.Preprocessing.text_preprocessing import *
 
 
@@ -53,6 +49,10 @@ class MainApp:
 
         self.dataset_loading_service = DatasetLoadingService(apiclient=self.apiclient,
                                                              redis_client=self.redis_client)
+        self.preprocessing_service = PreprocessingService(
+            session_manager=self.session_manager,
+            perplexity_min=MainApp.PERPLEXITY_MIN,
+        )
         """
         Remove_Punctuation only provides text processing without any saving any parameters so it does not need
         to be remembered between streamlit sessions
@@ -236,10 +236,7 @@ class MainApp:
         """
         initial_pmids = read_initial_pmids_from_the_file()
         self.session_manager.set("pmid_df", self.dataset_loading_service.load_initial_dataset_from_redis(initial_pmids))
-        validate_user_preprocessing_parameters(MainApp.PERPLEXITY_MIN)
-        reset_select_boxes()
-        preprocess_raw_text()
-        self.session_manager.set("success_flag", True)
+        self.preprocessing_service.process_loaded_toy_dataset()
 
     # ----------------------------------- User data handling -----------------------------------
     def handle_user_dataset(self) -> None:
@@ -250,9 +247,4 @@ class MainApp:
                 min_len_pmid_list=MainApp.MIN_LEN_PMID_LIST,
             ),
         )
-
-        self.session_manager.set("current_num_clusters", self.session_manager.get("num_clusters"))
-        validate_user_preprocessing_parameters(MainApp.PERPLEXITY_MIN)
-        reset_select_boxes()
-        preprocess_raw_text()
-        self.session_manager.set("success_flag", True)
+        self.preprocessing_service.process_loaded_user_dataset()
