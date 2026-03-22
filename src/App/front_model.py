@@ -17,8 +17,6 @@ from src.Preprocessing.text_preprocessing import *
 
 class MainApp:
 
-    PERPLEXITY_MIN = 30
-
     def __init__(self):
         self.progress_bar_placeholder = None
         self.error_placeholder = None
@@ -32,8 +30,7 @@ class MainApp:
         self.dataset_loading_service = DatasetLoadingService(apiclient=self.apiclient,
                                                              redis_client=self.redis_client)
         self.preprocessing_service = PreprocessingService(
-            session_manager=self.session_manager,
-            perplexity_min=MainApp.PERPLEXITY_MIN,
+            session_manager=self.session_manager
         )
         self.ui_service = UIService()
         self.session_manager.set("remove_punctuation", ProcessorFactory.get_processor("remove_punctuation"))
@@ -79,8 +76,7 @@ class MainApp:
 
     def prepare_tabs(self) -> None:
         self.ui_service.render_tabs(
-            session_manager=self.session_manager,
-            info_file_path="src/App/info.md",
+            session_manager=self.session_manager
         )
 
     def load_data_from_redis(self) -> None:

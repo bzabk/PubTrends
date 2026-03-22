@@ -8,6 +8,7 @@ class UIService:
 
     PLOT_WIDTH = 900
     PLOT_HEIGHT = 600
+    INFO_MD_PATH = "src/App/info.md"
 
     def render_main_window(self):
         with st.container():
@@ -56,7 +57,7 @@ class UIService:
             "num_clusters": num_clusters,
         }
 
-    def render_tabs(self, session_manager, info_file_path: str):
+    def render_tabs(self, session_manager):
         tab_visualization, tab_info = st.tabs(["Visualization", "Info"])
 
         with tab_visualization:
@@ -125,5 +126,5 @@ class UIService:
                 )
 
         with tab_info:
-            with open(info_file_path, "r") as file:
+            with open(UIService.INFO_MD_PATH, "r") as file:
                 st.markdown(file.read())
