@@ -32,6 +32,8 @@ def hex_to_rgba(hex_color, alpha) -> str:
     """
     Converting hex color format to rgb
     """
+    import matplotlib.colors as mcolors
+
     rgba = mcolors.to_rgba(hex_color, alpha)
     return f"rgb({int(rgba[0] * 255)}, {int(rgba[1] * 255)}, {int(rgba[2] * 255)})"
 
@@ -87,6 +89,9 @@ def set_colors_and_opacity() -> None:
     Function assigns color and opacity to each label from the KMeans algorithm.
     To easly distingush points that satisfied filter conditions, points that were not selected
     """
+    import numpy as np
+    import plotly.express as px
+
     unique_labels = np.arange(0, st.session_state.current_num_clusters, 1).astype(str)
     colors = px.colors.qualitative.Alphabet
     color_palette = colors[: len(unique_labels)]
@@ -107,7 +112,9 @@ def set_colors_and_opacity() -> None:
     st.session_state.pmid_df["colors"] = color_palette_final
 
 
-def create_trace(is_selected: int, opacity: float, hover_text: list[str]) -> go.Scatter3d:
+def create_trace(is_selected: int, opacity: float, hover_text: list[str])-> go.Scatter3d:
+    import plotly.graph_objects as go
+
     return go.Scatter3d(
         x=st.session_state.current_X[st.session_state.pmid_df["is_selected"] == is_selected, 0],
         y=st.session_state.current_X[st.session_state.pmid_df["is_selected"] == is_selected, 1],
@@ -130,6 +137,8 @@ def load_3d_plot(plot_width, plot_height) -> go.Figure:
 
     :return go.Figure: prepared 3D plot ready to display
     """
+    import plotly.graph_objects as go
+
     # setting list of colors for each point in the dataframe
     set_colors_and_opacity()
     # creating hover text for these points that were selected by user
@@ -160,6 +169,8 @@ def validate_user_preprocessing_parameters(perplexity) -> None:
     in the DataFrame, t-SNE will raise an error.
     If the user provides an incorrect value for num_features or num_clusters, the last valid parameters will be used instead.
     """
+    from src.Preprocessing.text_preprocessing import ProcessorFactory
+
     if st.session_state.max_features is None:
         st.session_state.max_features = 10
     if st.session_state.num_clusters is None:
@@ -184,6 +195,11 @@ def preprocess_raw_text() -> None:
     5) Reduce dimensionality to 3D.
     6) Fit the KMeans algorithm and store the resulting labels in st.session_state.
     """
+    if st.session_state.get("remove_punctuation") is None:
+        from src.Preprocessing.text_preprocessing import ProcessorFactory
+
+        st.session_state.remove_punctuation = ProcessorFactory.get_processor("remove_punctuation")
+
     st.session_state.pmid_df = st.session_state.remove_punctuation.process(st.session_state.pmid_df)
     st.session_state.current_X = st.session_state.tfidf_processor.process(st.session_state.pmid_df["Text"])
     st.session_state.current_X = st.session_state.tsne_processor.process(st.session_state.current_X)

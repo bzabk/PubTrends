@@ -1,15 +1,17 @@
 FROM python:3.10-slim
 
-WORKDIR /streamlit_app
+WORKDIR /app
 
-ENV PATH="/streamlit_app/venv/bin:$PATH"
 COPY requirements.txt .
-RUN python -m venv "$VIRTUAL_ENV" && \
-    pip install --upgrade pip && \
+RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
-    python -m nltk.downloader stopwords
+    python -m nltk.downloader stopwords -d /usr/local/share/nltk_data stopwords
 
 
 COPY . .
 EXPOSE 8501
-CMD ["streamlit","run","main.py","--server.port=8501","--server.address=0.0.0.0","--server.fileWatcherType=poll"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD python -c "import socket; s=socket.socket(); s.connect(('127.0.0.1', 8501)); s.close()"
+
+CMD ["streamlit","run","main.py","--server.port=8501","--server.address=0.0.0.0"]
