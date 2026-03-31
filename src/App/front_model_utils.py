@@ -1,15 +1,8 @@
-import numpy as np
 import streamlit as st
-import matplotlib.colors as mcolors
 from src.Exceptions.front_model_exceptions import (
     PmidTxtFileIsNoneException,
     NotEnoughPmidsInTxtFileException,
-    EmptyDataFrameException
 )
-import plotly.express as px
-import plotly.graph_objects as go
-
-from src.Preprocessing.text_preprocessing import ProcessorFactory
 
 
 def reset_select_boxes() -> None:
@@ -112,7 +105,7 @@ def set_colors_and_opacity() -> None:
     st.session_state.pmid_df["colors"] = color_palette_final
 
 
-def create_trace(is_selected: int, opacity: float, hover_text: list[str])-> go.Scatter3d:
+def create_trace(is_selected: int, opacity: float, hover_text: list[str]):
     import plotly.graph_objects as go
 
     return go.Scatter3d(
@@ -130,7 +123,7 @@ def create_trace(is_selected: int, opacity: float, hover_text: list[str])-> go.S
     )
 
 
-def load_3d_plot(plot_width, plot_height) -> go.Figure:
+def load_3d_plot(plot_width, plot_height):
     """
     Main function responsible for displaying interactive 3D plot visualizing
     layout of the data points in 3D space.
