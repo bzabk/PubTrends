@@ -4,7 +4,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - ./src/ApiClient/RedisData:/data
+      - ./src/api_client/redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

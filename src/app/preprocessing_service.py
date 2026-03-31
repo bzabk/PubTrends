@@ -1,4 +1,4 @@
-from src.App.front_model_utils import (
+from src.app.front_model_utils import (
     reset_select_boxes,
     validate_user_preprocessing_parameters,
     preprocess_raw_text,

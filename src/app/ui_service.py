@@ -5,7 +5,7 @@ class UIService:
 
     PLOT_WIDTH = 900
     PLOT_HEIGHT = 600
-    INFO_MD_PATH = "src/App/info.md"
+    INFO_MD_PATH = "src/app/info.md"
 
     def render_main_window(self):
         with st.container():

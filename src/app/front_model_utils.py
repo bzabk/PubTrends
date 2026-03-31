@@ -1,5 +1,5 @@
 import streamlit as st
-from src.Exceptions.front_model_exceptions import (
+from src.exceptions.front_model_exceptions import (
     PmidTxtFileIsNoneException,
     NotEnoughPmidsInTxtFileException,
 )
@@ -16,7 +16,7 @@ def reset_select_boxes() -> None:
 
 
 def read_initial_pmids_from_the_file():
-    with open("src/ApiClient/PMIDs_list.txt", "r") as f:
+    with open("src/api_client/PMIDs_list.txt", "r") as f:
         pmids = [int(line.strip()) for line in f if line.strip().isdigit()]
         return list(set(pmids))
 
@@ -72,7 +72,7 @@ def load_css_styles() -> None:
     """
     Load CSS styles responsible for setting a fixed sidebar width.
     """
-    css_path = "src/App/Static/style.css"
+    css_path = "src/app/static/style.css"
     with open(css_path) as css:
         st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
 
@@ -162,7 +162,7 @@ def validate_user_preprocessing_parameters(perplexity) -> None:
     in the DataFrame, t-SNE will raise an error.
     If the user provides an incorrect value for num_features or num_clusters, the last valid parameters will be used instead.
     """
-    from src.Preprocessing.text_preprocessing import ProcessorFactory
+    from src.preprocessing.text_preprocessing import ProcessorFactory
 
     if st.session_state.max_features is None:
         st.session_state.max_features = 10
@@ -189,7 +189,7 @@ def preprocess_raw_text() -> None:
     6) Fit the KMeans algorithm and store the resulting labels in st.session_state.
     """
     if st.session_state.get("remove_punctuation") is None:
-        from src.Preprocessing.text_preprocessing import ProcessorFactory
+        from src.preprocessing.text_preprocessing import ProcessorFactory
 
         st.session_state.remove_punctuation = ProcessorFactory.get_processor("remove_punctuation")
 
