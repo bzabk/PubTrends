@@ -12,7 +12,6 @@ from src.ApiClient.apiclient import ApiClient
 from src.App.statemanager import SessionStateManager
 from src.Exceptions.api_client_exceptions import ResponseStatusException
 from src.Exceptions.front_model_exceptions import NotEnoughPmidsInTxtFileException
-from src.Preprocessing.text_preprocessing import *
 
 
 class MainApp:
@@ -33,7 +32,6 @@ class MainApp:
             session_manager=self.session_manager
         )
         self.ui_service = UIService()
-        self.session_manager.set("remove_punctuation", ProcessorFactory.get_processor("remove_punctuation"))
 
     # ----------------------------------- Layout App -----------------------------------
     def run(self):

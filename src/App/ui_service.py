@@ -1,7 +1,4 @@
-import numpy as np
 import streamlit as st
-
-from src.App.front_model_utils import load_3d_plot
 
 
 class UIService:
@@ -62,6 +59,8 @@ class UIService:
 
         with tab_visualization:
             if session_manager.get("success_flag"):
+                from src.App.front_model_utils import load_3d_plot
+
                 plot_placeholder = st.empty()
                 plot_placeholder.empty()
 
@@ -93,6 +92,8 @@ class UIService:
                     )
                 with col4:
                     if st.button("Filter"):
+                        import numpy as np
+
                         conditions = []
                         if selected_pmid != "<select>":
                             conditions.append(pmid_df["Pmid"] == selected_pmid)

@@ -1,20 +1,29 @@
 services:
-  streamlit-app:
-    build: .
-    ports:
-      - "8501:8501"
-    depends_on:
-      - redis-db
-    working_dir: /streamlit_app
-    volumes:
-      - .:/streamlit_app
-    environment:
-      - REDIS_HOST=redis-db
-      - STREAMLIT_SERVER_RUN_ON_SAVE=true
-      - STREAMLIT_SERVER_FILE_WATCHER_TYPE=poll
   redis-db:
     image: redis:7.4-alpine
     ports:
       - "6379:6379"
     volumes:
       - ./src/ApiClient/RedisData:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    depends_on:
+      - redis-db
+    working_dir: /app
+    volumes:
+      - ./src:/app/src
+      - ./main.py:/app/main.py
+      - ./.streamlit:/app/.streamlit
+    environment:
+      - REDIS_HOST=redis-db
+
+volumes:
+  redis-data:
