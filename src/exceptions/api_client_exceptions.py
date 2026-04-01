@@ -24,4 +24,6 @@ class ResponseStatusException(Exception):
         self.message = message
         super().__init__(self.message)
 
+class ParserError(Exception):
+    pass
 
