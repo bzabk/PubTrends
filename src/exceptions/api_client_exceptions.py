@@ -4,6 +4,8 @@ class SingleAsyncCallException(Exception):
         super().__init__(self.message)
 
 
+class GatewayException(SingleAsyncCallException):
+    pass
 class InfoSummaryException(SingleAsyncCallException):
     def __init__(self, message="Error during info summary retrieval phase from API"):
         super().__init__(message)
