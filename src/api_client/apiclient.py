@@ -2,15 +2,15 @@ import asyncio
 import json
 from asyncio import Semaphore
 import numpy as np
-from src.ApiClient.DbCache.RedisCaching import RedisCaching
-from src.Exceptions.api_client_exceptions import (
+from src.api_client.db_cache.redis_caching import RedisCaching
+from src.exceptions.api_client_exceptions import (
     InfoSummaryException,
     OverallDesignException,
     PmidException,
     ResponseStatusException,
     SingleAsyncCallException,
 )
-from src.ApiClient.apiclient_utils import *
+from src.api_client.apiclient_utils import *
 from typing import List, Any, Callable
 import aiohttp
 import pandas as pd
@@ -86,7 +86,7 @@ class ApiClient:
             return None
 
     async def is_data_in_cache(self, pmid: int) -> int | None:
-        if await self.redis_client.check_if_exists(pmid):
+        if await self.redis_client.exists(pmid):
             return None
         return pmid
 
@@ -102,7 +102,7 @@ class ApiClient:
         pmid = str(df["Pmid"].iloc[0])
         tasks = [
             asyncio.create_task(
-                self.redis_client.sadd(
+                self.redis_client.add(
                     pmid,
                     json.dumps(
                         {k: int(v) if isinstance(v, np.integer) else v for k, v in row._asdict().items() if k != "Pmid"}

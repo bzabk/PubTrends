@@ -1,8 +1,8 @@
 import asyncio
 import pandas as pd
 
-from src.App.front_model_utils import validate_chosen_file
-from src.Exceptions.front_model_exceptions import EmptyDataFrameException
+from src.app.front_model_utils import validate_chosen_file
+from src.exceptions.front_model_exceptions import EmptyDataFrameException
 
 
 class DatasetLoadingService:
@@ -13,7 +13,7 @@ class DatasetLoadingService:
         self.redis_client = redis_client
 
     def load_initial_dataset_from_redis(self, initial_pmids) -> pd.DataFrame:
-        initial_raw_data = asyncio.run(self.redis_client.get_dataframe_from_redis(initial_pmids))
+        initial_raw_data = asyncio.run(self.redis_client.get(initial_pmids))
         return pd.DataFrame(initial_raw_data)
 
     def load_user_dataset(self, uploaded_file) -> pd.DataFrame:
@@ -46,6 +46,6 @@ class DatasetLoadingService:
 
     def _analyse_dataframe_present_in_redis(self, pmid_list, loop) -> pd.DataFrame:
         if pmid_list:
-            data = loop.run_until_complete(self.redis_client.get_dataframe_from_redis(pmid_list))
+            data = loop.run_until_complete(self.redis_client.get(pmid_list))
             return pd.DataFrame(data)
         return pd.DataFrame()

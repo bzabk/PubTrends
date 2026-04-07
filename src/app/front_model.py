@@ -1,17 +1,17 @@
 import asyncio
 import streamlit as st
-from src.App.dataset_loading_service import DatasetLoadingService
-from src.App.message_service import MessageService
-from src.App.preprocessing_service import PreprocessingService
-from src.App.ui_service import UIService
-from src.App.front_model_utils import (
+from src.app.dataset_loading_service import DatasetLoadingService
+from src.app.message_service import MessageService
+from src.app.preprocessing_service import PreprocessingService
+from src.app.ui_service import UIService
+from src.app.front_model_utils import (
     read_initial_pmids_from_the_file,
 )
-from src.ApiClient.DbCache.RedisCaching import RedisCaching
-from src.ApiClient.apiclient import ApiClient
-from src.App.statemanager import SessionStateManager
-from src.Exceptions.api_client_exceptions import ResponseStatusException
-from src.Exceptions.front_model_exceptions import NotEnoughPmidsInTxtFileException
+from src.api_client.db_cache.redis_caching import RedisCaching
+from src.api_client.apiclient import ApiClient
+from src.app.statemanager import SessionStateManager
+from src.exceptions.api_client_exceptions import ResponseStatusException
+from src.exceptions.front_model_exceptions import NotEnoughPmidsInTxtFileException
 
 
 class MainApp:
@@ -33,7 +33,7 @@ class MainApp:
         )
         self.ui_service = UIService()
 
-    # ----------------------------------- Layout App -----------------------------------
+    # ----------------------------------- Layout app -----------------------------------
     def run(self):
         self.prepare_main_window()
         self.prepare_side_bar()
