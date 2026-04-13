@@ -5,8 +5,8 @@ import pandas as pd
 
 @dataclass
 class CachedDatasetRecord:
-    pmid: int
-    db_idx: int
+    pmid: str
+    db_idx: str
     title: str
     summary: str
     organism: str
@@ -14,16 +14,14 @@ class CachedDatasetRecord:
     gse_code: str
     overall_design: str | None
 
-
-
 @dataclass
 class DatasetLinkDto:
-    pmid: int
-    db_ids: list[int]
+    pmid: str
+    db_ids: list[str]
 
 @dataclass
 class DatasetSummaryDto:
-    db_idx: int
+    db_idx: str
     title: str
     summary: str
     organism: str
@@ -38,5 +36,5 @@ class OverallDesignDto:
 @dataclass
 class FetchDataframeResult:
     dataframe: pd.DataFrame
-    failed_pmids: list[int]
-    no_data_pmids: list[int]
+    failed_pmids: list[str]
+    no_data_pmids: list[str]
