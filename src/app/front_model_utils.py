@@ -31,7 +31,7 @@ def hex_to_rgba(hex_color, alpha) -> str:
     return f"rgb({int(rgba[0] * 255)}, {int(rgba[1] * 255)}, {int(rgba[2] * 255)})"
 
 
-def validate_chosen_file(uploaded_file, min_len_pmid_list) -> list[int] | None:
+def validate_chosen_file(uploaded_file, min_len_pmid_list) -> list[str] | None:
     """
     Function checks whether the uploaded file is in the correct format and extracts PMIDs from it.
     In case user uploaded less than 10 correct PMIDs, an error message is displayed.
@@ -49,7 +49,7 @@ def validate_chosen_file(uploaded_file, min_len_pmid_list) -> list[int] | None:
     for line in pmids:
         line = line.replace(" ", "").strip()
         if line.isdigit():
-            list_of_pmids.append(int(line))
+            list_of_pmids.append(str(line))
     list_of_pmids = list(set(list_of_pmids))
     if len(list_of_pmids) < min_len_pmid_list:
         raise NotEnoughPmidsInTxtFileException

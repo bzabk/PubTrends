@@ -1,41 +1,87 @@
-import asyncio
 import json
+from collections.abc import Sequence
 from dataclasses import asdict
 
 import redis.asyncio as aioredis
-from src.api_client.dtos import CachedDatasetRecord
+from redis import RedisError
+from src.api_client.dtos import CachedDatasetRecord, CachedPmidRecords
 from src.api_client.ports import DatasetCacheRepository
+from src.exceptions.api_client_exceptions import (
+    RedisRequestException,
+    CacheSerializationError,
+)
 
 
 class RedisDatasetCacheRepository(DatasetCacheRepository):
+    def __init__(self, redis_client: aioredis.Redis):
+        self._client = redis_client
+        self._key_prefix = "pmid"
+        self._key_suffix = "dataset_details"
 
-    def __init__(self, host: str, port: int, db: int):
-        self.client = aioredis.Redis(host=host, port=db, decode_responses=True)
+    async def exists(self, key: str) -> bool:
+        try:
+            return bool(await self._client.exists(self._make_key(key)))
+        except RedisError as e:
+            raise RedisRequestException(
+                f"Redis exists operation failed for key: {key}"
+            ) from e
 
-    async def exists(self, key) -> bool:
-        return bool(await self.client.exists(key))
+    async def insert(self, entries: Sequence[CachedPmidRecords]) -> None:
+        if not entries:
+            return
+        try:
+            key_value_pairs = {
+                self._make_key(entry.pmid): self._serialize(entry.records)
+                for entry in entries
+                if entry.records
+            }
+        except CacheSerializationError as e:
+            raise CacheSerializationError(
+                "Failed to serialize cache records before Redis insert"
+            ) from e
+        if not key_value_pairs:
+            return
+        try:
+            await self._client.mset(key_value_pairs)
+        except RedisError as e:
+            raise RedisRequestException("Redis insert operation failed") from e
 
-    async def add(self, data_cache_record: DatasetCacheRepository) -> None:
-        key = self._make_key(data_cache_record)
-        dict_record = json.dumps(asdict(data_cache_record))
-        await self.client.set(name=key, value=dict_record)
+    async def get(self, pmids: Sequence[str]) -> list[CachedDatasetRecord]:
+        if not pmids:
+            return []
+        keys = [self._make_key(pmid) for pmid in pmids]
+        try:
+            raw_values = await self._client.mget(keys)
+        except RedisError as e:
+            raise RedisRequestException("Redis get operation failed") from e
 
-    async def add_many(self,data_cache_record: list[DatasetCacheRepository]) -> None:
-        tasks = [self.add(record) for record in data_cache_record]
-        results = asyncio.run(*tasks)
+        results = []
+        for key, raw_value in zip(keys, raw_values):
+            if raw_value is not None:
+                try:
+                    results.extend(self._deserialize(raw_value))
+                except CacheSerializationError as e:
+                    raise CacheSerializationError(
+                        f"Failed to deserialize cached value for key: {key}"
+                    ) from e
         return results
 
-    async def get(self, key: str) -> CachedDatasetRecord | None:
-        if not await self.client.exists(key):
-            return None
-        record = self.client.get(key)
-        return record
+    def _make_key(self, pmid: str) -> str:
+        return f"{self._key_prefix}:{pmid}:{self._key_suffix}"
 
-    async def get_many(self, indices: list[str]) -> list[CachedDatasetRecord|None]:
-        tasks = [self.get(key) for key in indices]
-        results = await asyncio.gather(*tasks)
-        return results
+    def _serialize(self, records: Sequence[CachedDatasetRecord]) -> str:
+        try:
+            return json.dumps([asdict(record) for record in records])
+        except TypeError as e:
+            raise CacheSerializationError(
+                "Failed to serialize cached dataset records"
+            ) from e
 
-    def _make_key(self,data_cache_record: DatasetCacheRepository) -> str:
-        return f"pmid:{data_cache_record.pmid}"
-
+    def _deserialize(self, raw_value: str) -> list[CachedDatasetRecord]:
+        try:
+            decoded = json.loads(raw_value)
+            return [CachedDatasetRecord(**item) for item in decoded]
+        except (json.JSONDecodeError, TypeError) as e:
+            raise CacheSerializationError(
+                "Failed to deserialize cached dataset records"
+            ) from e

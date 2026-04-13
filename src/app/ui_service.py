@@ -59,7 +59,7 @@ class UIService:
 
         with tab_visualization:
             if session_manager.get("success_flag"):
-                from src.App.front_model_utils import load_3d_plot
+                from src.app.front_model_utils import load_3d_plot
 
                 plot_placeholder = st.empty()
                 plot_placeholder.empty()
