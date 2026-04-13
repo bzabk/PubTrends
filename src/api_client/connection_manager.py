@@ -21,9 +21,12 @@ class ConnectionManager:
         self._session = None
 
     async def __aenter__(self):
-        timeout = aiohttp.ClientTimeout(total=self._timeout_s)
-        connector = aiohttp.TCPConnector(limit=self._connector_limit)
-        self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
+        timeout = aiohttp.ClientTimeout(total=15)
+        connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
+        self._session = aiohttp.ClientSession(
+            timeout=timeout,
+            connector=connector
+        )
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
@@ -60,7 +63,6 @@ class ConnectionManager:
                         return await response.text()
             except (aiohttp.ClientError, asyncio.TimeoutError,HttpStatusException) as e:
                 last_error = e
-
                 if isinstance(e, HttpStatusException) and 400 <= e.status < 500 and e.status not in (429, 408):
                     raise RequestException(str(e)) from e
 

@@ -25,3 +25,12 @@ class HttpStatusException(Exception):
 class SessionNotInitializedError(Exception):
     pass
 
+class RedisRequestException(Exception):
+    pass
+
+class CacheSerializationError(Exception):
+    pass
+
+class MissingAPIKeyError(Exception):
+    pass
+

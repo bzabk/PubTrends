@@ -1,13 +1,15 @@
-from typing import Protocol, Any
+from collections.abc import Sequence
+from typing import Protocol
+
+from src.api_client.dtos import CachedDatasetRecord, CachedPmidRecords
 
 
 class DatasetCacheRepository(Protocol):
-
-    async def exists(self,pmid: int) ->bool:
+    async def get(self, pmids: Sequence[str]) -> list[CachedDatasetRecord]:
         ...
 
-    async def add(self, pmid_data: dict[str, Any]) -> int:
+    async def insert(self, pmid: list[CachedPmidRecords]) -> None:
         ...
 
-    async def get(self,pmid: list[int]) -> list[dict[str, Any]]:
+    async def exists(self, key: str) -> bool:
         ...
