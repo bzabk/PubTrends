@@ -7,20 +7,13 @@ import pandas as pd
 @dataclass
 class CachedDatasetRecord:
     pmid: str
-    db_idx: int
+    db_idx: str
     title: str
     summary: str
     organism: str
     experiment_type: str
     gse_code: str
     overall_design: str | None
-
-
-@dataclass
-class CachedPmidRecords:
-    pmid: str
-    records: list[CachedDatasetRecord]
-
 
 @dataclass
 class DatasetLinkDto:
@@ -80,7 +73,5 @@ class BatchFetchResult:
 @dataclass
 class FetchDataframeResult:
     dataframe: pd.DataFrame
-    failed_pmids: list[int]
-    no_data_pmids: list[int]
-
-
+    failed_pmids: list[str]
+    no_data_pmids: list[str]
