@@ -7,7 +7,7 @@ from src.app.ui_service import UIService
 from src.app.front_model_utils import (
     read_initial_pmids_from_the_file,
 )
-from src.api_client.db_cache.redis_caching import RedisCaching
+from src.api_client.db_cache.redis_dataset_cache_repository import RedisCaching
 from src.api_client.apiclient import ApiClient
 from src.app.statemanager import SessionStateManager
 from src.exceptions.api_client_exceptions import ResponseStatusException

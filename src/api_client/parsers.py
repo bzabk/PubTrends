@@ -8,7 +8,6 @@ def parse_pmid_to_dbidx(response_result: dict[str, Any],pmid: str) -> DatasetLin
         db_ids = response_result["linksets"][0]["linksetdbs"][0]["links"]
     except Exception as e:
         raise ParserError(f"Failed to parse dbidx for {pmid}") from e
-
     return DatasetLinkDto(pmid=pmid, db_ids=db_ids)
 
 def parse_dataset_summary(response_result: dict[str, Any],db_idx: str) -> DatasetSummaryDto:

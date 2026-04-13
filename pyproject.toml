@@ -19,6 +19,21 @@ dependencies = [
     "scikit-learn~=1.7.1",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest~=8.4.1",
+    "pytest-asyncio~=0.21.1",
+    "aioresponses~=0.7.8",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+asyncio_mode = "auto"
+markers = [
+    "unit: fast unit tests",
+    "integration: integration tests touching external boundaries",
+    "contract: public-contract regression tests",
+    "redis: tests that require the Redis docker test service",
+    "slow: tests that are intentionally slower than the default suite",
+]
