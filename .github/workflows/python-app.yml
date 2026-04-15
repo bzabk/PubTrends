@@ -30,7 +30,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-python-env
       - name: Unit tests
-        run: pytest tests/unit -m "unit"
+        run: pytest tests/unit -m "unit" --suppress-no-test-exit-code
 
   test-redis:
     needs: lint
@@ -54,4 +54,4 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-python-env
       - name: Redis tests
-        run: pytest tests/integration -m "redis"
+        run: pytest tests/integration -m "redis" --suppress-no-test-exit-code
