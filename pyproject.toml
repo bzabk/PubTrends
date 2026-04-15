@@ -23,6 +23,26 @@ test = [
     "pytest~=8.4.1"
 ]
 
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+include = [
+    "src/**/*.py",
+    "tests/**/*.py"
+]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "B",
+    "UP",
+    "SIM",
+    "C4",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
