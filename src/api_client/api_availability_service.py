@@ -17,9 +17,7 @@ class ApiAvailabilityService:
             return_exceptions=True,
         )
         errors = [result for result in results if isinstance(result, Exception)]
-        if errors:
-            return False
-        return True
+        return not errors
 
     async def _check_elink(self) -> None:
         return await self._connector.get_json(

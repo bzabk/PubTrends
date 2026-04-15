@@ -92,19 +92,18 @@ def set_colors_and_opacity() -> None:
     colors = px.colors.qualitative.Alphabet
     color_palette = colors[: len(unique_labels)]
     # mapping from unique_labels to color
-    map_dict = dict(zip(unique_labels, color_palette))
+    map_dict = dict(zip(unique_labels, color_palette, strict=False))
     # assigning color to each point based on its label
     list_of_colors = [map_dict[label] for label in st.session_state.current_labels]
     idx = 0
     color_palette_final = []
     # looping through all points in dataframe and
     # setting opacity based on whether they were selected by user or not
-    for col in list_of_colors:
-        if st.session_state.pmid_df["is_selected"].iloc[idx] == 1:
+    for idx, col in enumerate(list_of_colors):
+        if st.session_state.pmid_df["is_selected"].iloc[idx] == (idx + 1):
             color_palette_final.append(hex_to_rgba(col, alpha=1))
         else:
             color_palette_final.append(hex_to_rgba(col, alpha=0.2))
-        idx += 1
     st.session_state.pmid_df["colors"] = color_palette_final
 
 
@@ -122,13 +121,13 @@ def create_trace(is_selected: int, opacity: float, hover_text: list[str]):
             st.session_state.pmid_df["is_selected"] == is_selected, 2
         ],
         mode="markers",
-        marker=dict(
-            color=st.session_state.pmid_df["colors"][
+        marker={
+            "color": st.session_state.pmid_df["colors"][
                 st.session_state.pmid_df["is_selected"] == is_selected
             ],
-            size=8,
-            opacity=opacity,
-        ),
+            "size": 8,
+            "opacity": opacity,
+        },
         hovertext=hover_text,
         hoverinfo="text",
     )
@@ -159,7 +158,7 @@ def load_3d_plot(plot_width, plot_height):
     fig.add_trace(trace2)
 
     fig.update_layout(
-        scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Z"),
+        scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z"},
         width=plot_width,
         height=plot_height,
         showlegend=False,

@@ -42,7 +42,7 @@ class FetchDataService:
     async def fetch_batch(self, pmids: list[str]) -> BatchFetchResult:
         cached_records = await self.cache_repository.get(pmids)
         cache_hits = self._extract_hit_pmids(cached_records)
-        missing_pmids = [pmid for pmid in pmids if pmid not in set(cache_hits)]
+        [pmid for pmid in pmids if pmid not in set(cache_hits)]
 
         tasks = [self._fetch_single_pmid_semaphore(pmid) for pmid in pmids]
         single_pmid_results = await asyncio.gather(*tasks)

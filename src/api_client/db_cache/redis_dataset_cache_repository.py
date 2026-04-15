@@ -57,7 +57,7 @@ class RedisDatasetCacheRepository(DatasetCacheRepository):
             raise RedisRequestException("Redis get operation failed") from e
 
         results = []
-        for key, raw_value in zip(keys, raw_values):
+        for key, raw_value in zip(keys, raw_values, strict=False):
             if raw_value is not None:
                 try:
                     results.extend(self._deserialize(raw_value))
