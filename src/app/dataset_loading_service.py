@@ -1,4 +1,5 @@
 import asyncio
+
 import pandas as pd
 
 from src.app.front_model_utils import validate_chosen_file
@@ -17,26 +18,44 @@ class DatasetLoadingService:
         return pd.DataFrame(initial_raw_data)
 
     def load_user_dataset(self, uploaded_file) -> pd.DataFrame:
-        pmid_list_from_file = validate_chosen_file(uploaded_file, DatasetLoadingService.MIN_LEN_PMID_LIST)
+        pmid_list_from_file = validate_chosen_file(
+            uploaded_file, DatasetLoadingService.MIN_LEN_PMID_LIST
+        )
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             pmids_not_present_in_redis = loop.run_until_complete(
-                self.apiclient.reduce_user_pmid_list_with_cached_data(pmid_list_from_file)
+                self.apiclient.reduce_user_pmid_list_with_cached_data(
+                    pmid_list_from_file
+                )
             )
-            pmids_present_in_redis = list(set(pmid_list_from_file).difference(pmids_not_present_in_redis))
+            pmids_present_in_redis = list(
+                set(pmid_list_from_file).difference(pmids_not_present_in_redis)
+            )
 
-            dataframe_present_in_redis = self._analyse_dataframe_present_in_redis(pmids_present_in_redis, loop)
-            dataframe_not_present_in_redis = self._analyse_dataframe_not_present_in_redis(pmids_not_present_in_redis, loop)
+            dataframe_present_in_redis = self._analyse_dataframe_present_in_redis(
+                pmids_present_in_redis, loop
+            )
+            dataframe_not_present_in_redis = (
+                self._analyse_dataframe_not_present_in_redis(
+                    pmids_not_present_in_redis, loop
+                )
+            )
         finally:
             loop.close()
 
         if dataframe_present_in_redis.empty and dataframe_not_present_in_redis.empty:
             raise EmptyDataFrameException
 
-        dataframes = [df for df in (dataframe_present_in_redis, dataframe_not_present_in_redis) if not df.empty]
-        return pd.concat(dataframes, ignore_index=True) if dataframes else pd.DataFrame()
+        dataframes = [
+            df
+            for df in (dataframe_present_in_redis, dataframe_not_present_in_redis)
+            if not df.empty
+        ]
+        return (
+            pd.concat(dataframes, ignore_index=True) if dataframes else pd.DataFrame()
+        )
 
     def _analyse_dataframe_not_present_in_redis(self, pmid_list, loop) -> pd.DataFrame:
         if pmid_list:

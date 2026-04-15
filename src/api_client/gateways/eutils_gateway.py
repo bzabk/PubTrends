@@ -1,4 +1,4 @@
-from src.api_client.dtos import DatasetSummaryDto, DatasetLinkDto
+from src.api_client.dtos import DatasetLinkDto, DatasetSummaryDto
 from src.api_client.parsers import parse_dataset_summary, parse_pmid_to_dbidx
 from src.exceptions.api_client_exceptions import GatewayException
 
@@ -25,7 +25,9 @@ class AsyncEutilsGateway:
                 },
             )
         except Exception as e:
-            raise GatewayException(f"Failed to fetch dataset idx for pmid {pmid}") from e
+            raise GatewayException(
+                f"Failed to fetch dataset idx for pmid {pmid}"
+            ) from e
         return parse_pmid_to_dbidx(result, pmid)
 
     async def get_dataset_summary(self, db_idx: str) -> DatasetSummaryDto:
@@ -40,6 +42,7 @@ class AsyncEutilsGateway:
                 },
             )
         except Exception as e:
-            raise GatewayException(f"Failed to fetch dataset summary for db_idx {db_idx}") from e
+            raise GatewayException(
+                f"Failed to fetch dataset summary for db_idx {db_idx}"
+            ) from e
         return parse_dataset_summary(result, db_idx)
-

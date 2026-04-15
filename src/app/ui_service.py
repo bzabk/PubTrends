@@ -2,7 +2,6 @@ import streamlit as st
 
 
 class UIService:
-
     PLOT_WIDTH = 900
     PLOT_HEIGHT = 600
     INFO_MD_PATH = "src/app/info.md"
@@ -17,7 +16,9 @@ class UIService:
     def render_sidebar(self, api_key_value):
         with st.sidebar:
             st.sidebar.title("Provide API key")
-            api_key = st.text_input("Enter your ", type="password", value=api_key_value or "")
+            api_key = st.text_input(
+                "Enter your ", type="password", value=api_key_value or ""
+            )
             save_api_key_clicked = st.button("Save api key")
 
             st.sidebar.title("Enter txt file with list of PMIDs", anchor="center")
@@ -27,7 +28,9 @@ class UIService:
                 accept_multiple_files=False,
                 label_visibility="collapsed",
             )
-            load_pmids_clicked = uploaded_file is not None and st.button("Load PMIDs file", use_container_width=True)
+            load_pmids_clicked = uploaded_file is not None and st.button(
+                "Load PMIDs file", use_container_width=True
+            )
 
             st.text("or choose a toy dataset")
             load_toy_clicked = st.button("Load toy dataset", use_container_width=True)
@@ -100,9 +103,13 @@ class UIService:
                         if selected_organism != "<select>":
                             conditions.append(pmid_df["Organism"] == selected_organism)
                         if selected_experiment_type != "<select>":
-                            conditions.append(pmid_df["Experiment_type"] == selected_experiment_type)
+                            conditions.append(
+                                pmid_df["Experiment_type"] == selected_experiment_type
+                            )
                         if conditions:
-                            pmid_df["is_selected"] = np.logical_and.reduce(conditions).astype(int)
+                            pmid_df["is_selected"] = np.logical_and.reduce(
+                                conditions
+                            ).astype(int)
                         else:
                             pmid_df["is_selected"] = 1
                         session_manager.set("pmid_df", pmid_df)
@@ -126,6 +133,5 @@ class UIService:
                     ][pmid_df["is_selected"] == 1]
                 )
 
-        with tab_info:
-            with open(UIService.INFO_MD_PATH, "r") as file:
-                st.markdown(file.read())
+        with tab_info, open(UIService.INFO_MD_PATH) as file:
+            st.markdown(file.read())

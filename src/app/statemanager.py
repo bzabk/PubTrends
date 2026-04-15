@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from typing import Any
 
 
@@ -18,9 +18,9 @@ class SessionDefaults:
     current_num_clusters: int | None = None
     remove_punctuation: Any = None
 
-class SessionStateManager:
 
-    def __init__(self,session):
+class SessionStateManager:
+    def __init__(self, session):
         self._streamlit_state = session
         self._default_values = asdict(SessionDefaults())
         self._initialize()
@@ -30,8 +30,8 @@ class SessionStateManager:
             if key not in self._streamlit_state:
                 self._streamlit_state[key] = value
 
-    def get(self,key):
+    def get(self, key):
         return self._streamlit_state[key]
 
-    def set(self,key,value):
+    def set(self, key, value):
         self._streamlit_state[key] = value

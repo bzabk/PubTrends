@@ -6,12 +6,11 @@ import pytest
 
 from src.api_client.dtos import DatasetLinkDto, DatasetSummaryDto, OverallDesignDto
 
-
-FIXTURES_DIR = Path(__file__).resolve().parents[1]/"fixtures"
+FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 def _load_json_fixture(filename: str) -> dict:
-    with (FIXTURES_DIR/filename).open() as fixture_file:
+    with (FIXTURES_DIR / filename).open() as fixture_file:
         return json.load(fixture_file)
 
 
@@ -110,26 +109,30 @@ def expected_overall_design_dto(overall_design_gse_code: str) -> OverallDesignDt
     )
 
 
-
 @pytest.fixture
 def min_len_pmid_list() -> int:
     return 10
+
 
 @pytest.fixture
 def empty_uploaded_pmid_file() -> FakeUploadedFile:
     return _load_uploaded_text_fixture("pmids_empty.txt")
 
+
 @pytest.fixture
 def too_short_uploaded_pmid_file() -> FakeUploadedFile:
     return _load_uploaded_text_fixture("pmids_not_enough.txt")
+
 
 @pytest.fixture
 def valid_uploaded_pmid_file() -> FakeUploadedFile:
     return _load_uploaded_text_fixture("pmids_valid.txt")
 
+
 @pytest.fixture
 def duplicated_pmids_file() -> FakeUploadedFile:
     return _load_uploaded_text_fixture("pmids_valid_duplicated.txt")
+
 
 @pytest.fixture
 def only_invalid_uploaded_pmid_file() -> FakeUploadedFile:
@@ -153,6 +156,7 @@ def expected_valid_pmids() -> list[int]:
         13131,
         14141,
     ]
+
 
 @pytest.fixture
 def unique_pmids_from_duplicated() -> list[int]:
