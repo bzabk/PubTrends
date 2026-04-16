@@ -20,12 +20,6 @@ class DatasetLinkDto:
     pmid: str
     db_ids: list[str]
 
-
-@dataclass
-class CachedPmidRecords:
-    pmid: str
-    records: list[CachedDatasetRecord]
-
 @dataclass
 class DatasetSummaryDto:
     db_idx: str
