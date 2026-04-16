@@ -1,7 +1,8 @@
 import asyncio
+
 from src.api_client.api_availability_service import ApiAvailabilityService
-from src.api_client.async_limiter import AsyncLimiter
 from src.api_client.api_data_fetcher import FetchDataService
+from src.api_client.async_limiter import AsyncLimiter
 from src.api_client.dtos import FetchDataframeResult
 from src.api_client.connection_manager import ConnectionManager
 from src.api_client.gateways.eutils_gateway import AsyncEutilsGateway
@@ -20,10 +21,7 @@ class ApiClientFacade:
     def fetch_dataframe(self, pmids: list[str]) -> FetchDataframeResult:
         if self._api_key is None:
             raise MissingAPIKeyError()
-        try:
-            return asyncio.run(self._fetch_dataframe_async(pmids))
-        except Exception as e:
-            pass
+        return asyncio.run(self._fetch_dataframe_async(pmids))
 
     def check_api_availability(self) -> None:
         asyncio.run(self._check_api_availability_async())
