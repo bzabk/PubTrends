@@ -43,6 +43,11 @@ class OverallDesignDto:
     gse_code: str
     overall_design: str | None
 
+@dataclass
+class CachedPmidRecords:
+    pmid: str
+    records: list[CachedDatasetRecord]
+
 
 @dataclass
 class SinglePmidFetchResult:

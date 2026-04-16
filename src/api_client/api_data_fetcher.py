@@ -13,10 +13,14 @@ from src.api_client.dtos import (
 )
 from src.api_client.gateways.eutils_gateway import AsyncEutilsGateway
 from src.api_client.gateways.ncbi_gateway import AsyncNcbiGateway
-from src.api_client.ports import DatasetCacheRepository
+from src.api_client.db_cache.ports import DatasetCacheRepository
+
+from src.exceptions.api_client_exceptions import GatewayException, CacheSerializationError, ParserError, \
+    RedisRequestException
 
 
 class FetchDataService:
+
     def __init__(
         self,
         eutils_gateway: AsyncEutilsGateway,
@@ -35,18 +39,18 @@ class FetchDataService:
         combined_dataframe = self._combine_dataframes(batch_result.partial_dataframes)
         return FetchDataframeResult(
             dataframe=combined_dataframe,
-            failed_pmids=self._pmids_to_int_list(batch_result.failed_pmids),
-            no_data_pmids=self._pmids_to_int_list(batch_result.no_data_pmids),
+            failed_pmids=batch_result.failed_pmids,
+            no_data_pmids=batch_result.no_data_pmids,
         )
 
     async def fetch_batch(self, pmids: list[str]) -> BatchFetchResult:
         cached_records = await self.cache_repository.get(pmids)
         cache_hits = self._extract_hit_pmids(cached_records)
-        [pmid for pmid in pmids if pmid not in set(cache_hits)]
+        missing_pmids = [pmid for pmid in pmids if pmid not in set(cache_hits)]
 
-        tasks = [self._fetch_single_pmid_semaphore(pmid) for pmid in pmids]
+        tasks = [self._fetch_single_pmid_semaphore(pmid) for pmid in missing_pmids]
         single_pmid_results = await asyncio.gather(*tasks)
-        print(single_pmid_results)
+
         fresh_records: list[CachedDatasetRecord] = []
         cache_entries: list[CachedPmidRecords] = []
         partial_dataframes: list[pd.DataFrame] = []
@@ -91,12 +95,12 @@ class FetchDataService:
         summaries: list[DatasetSummaryDto],
         overall_designs: list[OverallDesignDto],
     ) -> pd.DataFrame:
-        if not summaries:
+        if not summaries or not overall_designs or not pmid:
             return pd.DataFrame(columns=self._dataframe_columns())
 
         summary_rows = [
             {
-                "db_idx": int(summary.db_idx),
+                "db_idx": summary.db_idx,
                 "Title": summary.title,
                 "Summary": summary.summary,
                 "Organism": summary.organism,
@@ -133,12 +137,14 @@ class FetchDataService:
     async def _fetch_single_pmid(self, pmid: str) -> SinglePmidFetchResult:
         try:
             dataset_link = await self.eutils_gateway.get_dataset_idx(pmid)
-            db_ids = [str(db_idx) for db_idx in dataset_link.db_ids]
-            if not db_ids:
+            if not dataset_link.db_ids:
                 return SinglePmidFetchResult.no_data(pmid)
 
             summaries = await asyncio.gather(
-                *(self.eutils_gateway.get_dataset_summary(db_id) for db_id in db_ids)
+                *(
+                    self.eutils_gateway.get_dataset_summary(db_id)
+                    for db_id in dataset_link.db_ids
+                )
             )
             if not summaries:
                 return SinglePmidFetchResult.no_data(pmid)
@@ -160,7 +166,12 @@ class FetchDataService:
 
             records = self._dataframe_to_records(single_pmid_df)
             return SinglePmidFetchResult.success(pmid, records, single_pmid_df)
-        except Exception:
+        except (
+            CacheSerializationError,
+            GatewayException,
+            ParserError,
+            RedisRequestException,
+        ):
             return SinglePmidFetchResult.failed(pmid)
 
     def _combine_dataframes(self, dataframes: list[pd.DataFrame]) -> pd.DataFrame:
@@ -179,8 +190,8 @@ class FetchDataService:
 
         rows = [
             {
-                "Pmid": int(record.pmid),
-                "db_idx": int(record.db_idx),
+                "Pmid": record.pmid,
+                "db_idx": record.db_idx,
                 "Title": record.title,
                 "Summary": record.summary,
                 "Organism": record.organism,
@@ -197,8 +208,8 @@ class FetchDataService:
     ) -> list[CachedDatasetRecord]:
         return [
             CachedDatasetRecord(
-                pmid=str(row.Pmid),
-                db_idx=int(row.db_idx),
+                pmid=row.Pmid,
+                db_idx=row.db_idx,
                 title=row.Title,
                 summary=row.Summary,
                 organism=row.Organism,
@@ -210,11 +221,7 @@ class FetchDataService:
         ]
 
     def _extract_hit_pmids(self, records: list[CachedDatasetRecord]) -> list[str]:
-        print(records)
         return list(dict.fromkeys(record.pmid for record in records))
-
-    def _pmids_to_int_list(self, pmids: list[str]) -> list[int]:
-        return [int(pmid) for pmid in pmids]
 
     def _dataframe_columns(self) -> list[str]:
         return [
