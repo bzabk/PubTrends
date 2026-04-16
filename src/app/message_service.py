@@ -9,4 +9,3 @@ class MessageService:
     def success(self, message):
         self.error_placeholder.empty()
         self.error_placeholder.success(message)
-

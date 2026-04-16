@@ -1,7 +1,7 @@
 from src.app.front_model_utils import (
+    preprocess_raw_text,
     reset_select_boxes,
     validate_user_preprocessing_parameters,
-    preprocess_raw_text,
 )
 
 
@@ -18,7 +18,9 @@ class PreprocessingService:
         self.session_manager.set("success_flag", True)
 
     def process_loaded_user_dataset(self) -> None:
-        self.session_manager.set("current_num_clusters", self.session_manager.get("num_clusters"))
+        self.session_manager.set(
+            "current_num_clusters", self.session_manager.get("num_clusters")
+        )
         validate_user_preprocessing_parameters(PreprocessingService.PERPLEXITY_MIN)
         reset_select_boxes()
         preprocess_raw_text()

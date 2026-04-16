@@ -22,19 +22,17 @@ from src.exceptions.api_client_exceptions import GatewayException, CacheSerializ
 class FetchDataService:
 
     def __init__(
-            self,
-            eutils_gateway: AsyncEutilsGateway,
-            ncbi_gateway: AsyncNcbiGateway,
-            cache_repository: DatasetCacheRepository,
-            concurrency_limit: int = 5,
+        self,
+        eutils_gateway: AsyncEutilsGateway,
+        ncbi_gateway: AsyncNcbiGateway,
+        cache_repository: DatasetCacheRepository,
+        concurrency_limit: int = 5,
     ):
         self.eutils_gateway = eutils_gateway
         self.ncbi_gateway = ncbi_gateway
         self.cache_repository = cache_repository
         self.concurrency_limit = concurrency_limit
         self.semaphore = asyncio.Semaphore(concurrency_limit)
-
-
 
     async def fetch_dataframe(self, pmids: list[str]) -> FetchDataframeResult:
         batch_result = await self.fetch_batch(pmids)
@@ -62,7 +60,9 @@ class FetchDataService:
         for result in single_pmid_results:
             if result.status == "success":
                 fresh_records.extend(result.records)
-                cache_entries.append(CachedPmidRecords(pmid=result.pmid, records=result.records))
+                cache_entries.append(
+                    CachedPmidRecords(pmid=result.pmid, records=result.records)
+                )
                 if result.dataframe is not None and not result.dataframe.empty:
                     partial_dataframes.append(result.dataframe)
             elif result.status == "no_data":
@@ -74,7 +74,7 @@ class FetchDataService:
 
         cached_dataframe = self._records_to_dataframe(cached_records)
         if not cached_dataframe.empty:
-           partial_dataframes.insert(0, cached_dataframe)
+            partial_dataframes.insert(0, cached_dataframe)
 
         return BatchFetchResult(
             records=fresh_records,
@@ -125,10 +125,14 @@ class FetchDataService:
         ]
 
         summary_df = pd.DataFrame(summary_rows).drop_duplicates(subset=["db_idx"])
-        overall_design_df = pd.DataFrame(overall_design_rows).drop_duplicates(subset=["GSE_code"])
+        overall_design_df = pd.DataFrame(overall_design_rows).drop_duplicates(
+            subset=["GSE_code"]
+        )
         pmid_df = pd.DataFrame(pmid_rows)
 
-        return pmid_df.merge(summary_df, on="db_idx", how="left").merge(overall_design_df, on="GSE_code", how="left")
+        return pmid_df.merge(summary_df, on="db_idx", how="left").merge(
+            overall_design_df, on="GSE_code", how="left"
+        )
 
     async def _fetch_single_pmid(self, pmid: str) -> SinglePmidFetchResult:
         try:
@@ -146,7 +150,10 @@ class FetchDataService:
                 return SinglePmidFetchResult.no_data(pmid)
 
             overall_designs = await asyncio.gather(
-                *(self.ncbi_gateway.get_overall_design(summary.gse_code) for summary in summaries)
+                *(
+                    self.ncbi_gateway.get_overall_design(summary.gse_code)
+                    for summary in summaries
+                )
             )
 
             single_pmid_df = self._create_dataframe_from_single_pmid(
@@ -166,8 +173,6 @@ class FetchDataService:
             RedisRequestException,
         ):
             return SinglePmidFetchResult.failed(pmid)
-
-
 
     def _combine_dataframes(self, dataframes: list[pd.DataFrame]) -> pd.DataFrame:
         filtered_dataframes = [
@@ -198,7 +203,9 @@ class FetchDataService:
         ]
         return pd.DataFrame(rows, columns=self._dataframe_columns())
 
-    def _dataframe_to_records(self, dataframe: pd.DataFrame) -> list[CachedDatasetRecord]:
+    def _dataframe_to_records(
+        self, dataframe: pd.DataFrame
+    ) -> list[CachedDatasetRecord]:
         return [
             CachedDatasetRecord(
                 pmid=row.Pmid,

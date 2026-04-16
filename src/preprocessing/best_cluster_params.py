@@ -18,7 +18,7 @@ def sillhoute_method(kmax: int, X):
         kmeans = KMeans(n_clusters=i)
         kmeans.fit(X)
         labels = kmeans.labels_
-        sil.append(silhouette_score(X, labels, metric='euclidean'))
+        sil.append(silhouette_score(X, labels, metric="euclidean"))
     # plt.plot(range(2, kmax + 1), sil)
     # plt.show()
 

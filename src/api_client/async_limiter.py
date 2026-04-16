@@ -12,6 +12,7 @@ class AsyncLimiter:
         self._delay_between_requests = 0.125
         self._last_request = None
         self._next_allowed_at = 0
+
     async def acquire(self):
 
         async with self._lock:
@@ -22,8 +23,6 @@ class AsyncLimiter:
         if delay > 0:
             await asyncio.sleep(delay)
 
-
-
             # if self._last_request is None:
             #     self._last_request = time.monotonic()
             #     return
@@ -32,7 +31,6 @@ class AsyncLimiter:
             # if time_since_last_request>self._delay_between_requests:
             #     self._last_request = time.monotonic()
             #     return
-
 
         # while True:
         #     async with self._lock:
@@ -45,6 +43,3 @@ class AsyncLimiter:
         #         time_left = self._release_time - (api_request_timestamp-self._api_calls_timestamps[0])
         #     if time_left > 0:
         #         await asyncio.sleep(time_left)
-
-
-

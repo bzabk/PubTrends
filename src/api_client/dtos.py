@@ -15,10 +15,18 @@ class CachedDatasetRecord:
     gse_code: str
     overall_design: str | None
 
+
+@dataclass
+class CachedPmidRecords:
+    pmid: str
+    records: list[CachedDatasetRecord]
+
+
 @dataclass
 class DatasetLinkDto:
     pmid: str
     db_ids: list[str]
+
 
 @dataclass
 class DatasetSummaryDto:
@@ -28,6 +36,7 @@ class DatasetSummaryDto:
     organism: str
     experiment_type: str
     gse_code: str
+
 
 @dataclass
 class OverallDesignDto:
@@ -49,10 +58,10 @@ class SinglePmidFetchResult:
 
     @classmethod
     def success(
-            cls,
-            pmid: str,
-            records: list[CachedDatasetRecord],
-            dataframe: pd.DataFrame,
+        cls,
+        pmid: str,
+        records: list[CachedDatasetRecord],
+        dataframe: pd.DataFrame,
     ) -> "SinglePmidFetchResult":
         return cls(pmid=pmid, status="success", records=records, dataframe=dataframe)
 

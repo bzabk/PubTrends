@@ -2,8 +2,8 @@ import asyncio
 
 from src.api_client.api_availability_service import ApiAvailabilityService
 from src.api_client.api_data_fetcher import FetchDataService
-from src.api_client.async_limiter import AsyncLimiter
 from src.api_client.dtos import FetchDataframeResult
+from src.api_client.async_limiter import AsyncLimiter
 from src.api_client.connection_manager import ConnectionManager
 from src.api_client.gateways.eutils_gateway import AsyncEutilsGateway
 from src.api_client.gateways.ncbi_gateway import AsyncNcbiGateway
@@ -41,5 +41,7 @@ class ApiClientFacade:
             return await fetch_data_service.fetch_dataframe(pmids)
 
     async def _check_api_availability_async(self) -> None:
-        async with ConnectionManager(async_limiter=AsyncLimiter()) as connection_manager:
+        async with ConnectionManager(
+            async_limiter=AsyncLimiter()
+        ) as connection_manager:
             await ApiAvailabilityService(connector=connection_manager).check()

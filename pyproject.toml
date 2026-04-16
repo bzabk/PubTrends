@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pubtrends"
+version = "0.1.0"
 dependencies = [
     "numpy~=2.2.6",
     "streamlit~=1.47.1",
@@ -20,12 +21,39 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "pytest~=8.4.1"
+    "pytest~=8.4.1",
+    "pytest-asyncio~=0.24.0",
+    "pytest-custom_exit_code",
+    "ruff"
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+include = [
+    "src/**/*.py",
+    "tests/**/*.py"
+]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "B",
+    "UP",
+    "SIM",
+    "C4",
+]
+ignore = [
+    "E501"
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+asyncio_mode = "auto"
 markers = [
     "unit",
     "redis",
