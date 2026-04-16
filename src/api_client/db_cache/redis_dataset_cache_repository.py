@@ -4,8 +4,9 @@ from dataclasses import asdict
 
 import redis.asyncio as aioredis
 from redis import RedisError
+
+from src.api_client.db_cache.ports import DatasetCacheRepository
 from src.api_client.dtos import CachedDatasetRecord, CachedPmidRecords
-from src.api_client.ports import DatasetCacheRepository
 from src.exceptions.api_client_exceptions import (
     RedisRequestException,
     CacheSerializationError,
@@ -56,7 +57,7 @@ class RedisDatasetCacheRepository(DatasetCacheRepository):
             raise RedisRequestException("Redis get operation failed") from e
 
         results = []
-        for key, raw_value in zip(keys, raw_values):
+        for key, raw_value in zip(keys, raw_values, strict=False):
             if raw_value is not None:
                 try:
                     results.extend(self._deserialize(raw_value))
