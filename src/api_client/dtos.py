@@ -43,6 +43,7 @@ class OverallDesignDto:
     gse_code: str
     overall_design: str | None
 
+
 @dataclass
 class CachedPmidRecords:
     pmid: str
@@ -62,15 +63,15 @@ class SinglePmidFetchResult:
         pmid: str,
         records: list[CachedDatasetRecord],
         dataframe: pd.DataFrame,
-    ) -> "SinglePmidFetchResult":
+    ) -> SinglePmidFetchResult:
         return cls(pmid=pmid, status="success", records=records, dataframe=dataframe)
 
     @classmethod
-    def no_data(cls, pmid: str) -> "SinglePmidFetchResult":
+    def no_data(cls, pmid: str) -> SinglePmidFetchResult:
         return cls(pmid=pmid, status="no_data", records=[], dataframe=None)
 
     @classmethod
-    def failed(cls, pmid: str) -> "SinglePmidFetchResult":
+    def failed(cls, pmid: str) -> SinglePmidFetchResult:
         return cls(pmid=pmid, status="failed", records=[], dataframe=None)
 
 

@@ -2,6 +2,7 @@ import asyncio
 
 import pandas as pd
 
+from src.api_client.db_cache.ports import DatasetCacheRepository
 from src.api_client.dtos import (
     BatchFetchResult,
     CachedDatasetRecord,
@@ -13,14 +14,15 @@ from src.api_client.dtos import (
 )
 from src.api_client.gateways.eutils_gateway import AsyncEutilsGateway
 from src.api_client.gateways.ncbi_gateway import AsyncNcbiGateway
-from src.api_client.db_cache.ports import DatasetCacheRepository
-
-from src.exceptions.api_client_exceptions import GatewayException, CacheSerializationError, ParserError, \
-    RedisRequestException
+from src.exceptions.api_client_exceptions import (
+    CacheSerializationError,
+    GatewayException,
+    ParserError,
+    RedisRequestException,
+)
 
 
 class FetchDataService:
-
     def __init__(
         self,
         eutils_gateway: AsyncEutilsGateway,

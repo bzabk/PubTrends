@@ -73,11 +73,7 @@ class ConnectionManager:
                         return await response.json()
                     else:
                         return await response.text()
-            except (
-                aiohttp.ClientError,
-                asyncio.TimeoutError,
-                HttpStatusException,
-            ) as e:
+            except (TimeoutError, aiohttp.ClientError, HttpStatusException) as e:
                 last_error = e
                 if (
                     isinstance(e, HttpStatusException)
