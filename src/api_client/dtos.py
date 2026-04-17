@@ -45,12 +45,6 @@ class OverallDesignDto:
 
 
 @dataclass
-class CachedPmidRecords:
-    pmid: str
-    records: list[CachedDatasetRecord]
-
-
-@dataclass
 class SinglePmidFetchResult:
     pmid: str
     status: Literal["success", "no_data", "failed"]
