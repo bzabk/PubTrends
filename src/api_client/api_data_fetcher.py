@@ -3,6 +3,7 @@ import asyncio
 import pandas as pd
 
 from api_client.api_dataframe_mapper import ApiDataFrameMapper
+from src.api_client.db_cache.ports import DatasetCacheRepository
 from src.api_client.dtos import (
     BatchFetchResult,
     CachedDatasetRecord,
@@ -12,14 +13,15 @@ from src.api_client.dtos import (
 )
 from src.api_client.gateways.eutils_gateway import AsyncEutilsGateway
 from src.api_client.gateways.ncbi_gateway import AsyncNcbiGateway
-from src.api_client.db_cache.ports import DatasetCacheRepository
-
-from src.exceptions.api_client_exceptions import GatewayException, CacheSerializationError, ParserError, \
-    RedisRequestException
+from src.exceptions.api_client_exceptions import (
+    CacheSerializationError,
+    GatewayException,
+    ParserError,
+    RedisRequestException,
+)
 
 
 class FetchDataService:
-
     def __init__(
         self,
         eutils_gateway: AsyncEutilsGateway,
@@ -35,7 +37,9 @@ class FetchDataService:
 
     async def fetch_dataframe(self, pmids: list[str]) -> FetchDataframeResult:
         batch_result = await self.fetch_batch(pmids)
-        combined_dataframe = ApiDataFrameMapper.combine_dataframes(batch_result.partial_dataframes)
+        combined_dataframe = ApiDataFrameMapper.combine_dataframes(
+            batch_result.partial_dataframes
+        )
         return FetchDataframeResult(
             dataframe=combined_dataframe,
             failed_pmids=batch_result.failed_pmids,
@@ -88,7 +92,6 @@ class FetchDataService:
         async with self.semaphore:
             return await self._fetch_single_pmid(pmid)
 
-
     async def _fetch_single_pmid(self, pmid: str) -> SinglePmidFetchResult:
         try:
             dataset_link = await self.eutils_gateway.get_dataset_idx(pmid)
@@ -132,4 +135,3 @@ class FetchDataService:
     @staticmethod
     def _extract_hit_pmids(records: list[CachedDatasetRecord]) -> list[str]:
         return list(dict.fromkeys(record.pmid for record in records))
-

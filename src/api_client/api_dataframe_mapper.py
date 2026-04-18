@@ -4,12 +4,11 @@ from api_client.dtos import CachedDatasetRecord, DatasetSummaryDto, OverallDesig
 
 
 class ApiDataFrameMapper:
-
     @staticmethod
     def create_dataframe_from_single_pmid(
-            pmid: str,
-            summaries: list[DatasetSummaryDto],
-            overall_designs: list[OverallDesignDto],
+        pmid: str,
+        summaries: list[DatasetSummaryDto],
+        overall_designs: list[OverallDesignDto],
     ) -> pd.DataFrame:
         if not summaries or not overall_designs or not pmid:
             return pd.DataFrame(columns=ApiDataFrameMapper.dataframe_columns())
@@ -82,8 +81,7 @@ class ApiDataFrameMapper:
         return pd.DataFrame(rows, columns=ApiDataFrameMapper.dataframe_columns())
 
     @staticmethod
-    def dataframe_to_records(dataframe: pd.DataFrame
-    ) -> list[CachedDatasetRecord]:
+    def dataframe_to_records(dataframe: pd.DataFrame) -> list[CachedDatasetRecord]:
         return [
             CachedDatasetRecord(
                 pmid=row.Pmid,
@@ -97,7 +95,6 @@ class ApiDataFrameMapper:
             )
             for row in dataframe.itertuples(index=False)
         ]
-
 
     @staticmethod
     def dataframe_columns() -> list[str]:
