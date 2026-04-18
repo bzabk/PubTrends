@@ -1,6 +1,6 @@
 import pandas as pd
 
-from api_client.dtos import CachedDatasetRecord, DatasetSummaryDto, OverallDesignDto
+from src.api_client.dtos import CachedDatasetRecord, DatasetSummaryDto, OverallDesignDto
 
 
 class ApiDataFrameMapper:
@@ -33,8 +33,8 @@ class ApiDataFrameMapper:
         ]
         pmid_rows = [
             {
-                "Pmid": int(pmid),
-                "db_idx": int(summary.db_idx),
+                "Pmid": pmid,
+                "db_idx": summary.db_idx,
             }
             for summary in summaries
         ]

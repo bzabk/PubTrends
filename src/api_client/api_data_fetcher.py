@@ -2,7 +2,7 @@ import asyncio
 
 import pandas as pd
 
-from api_client.api_dataframe_mapper import ApiDataFrameMapper
+from src.api_client.api_dataframe_mapper import ApiDataFrameMapper
 from src.api_client.db_cache.ports import DatasetCacheRepository
 from src.api_client.dtos import (
     BatchFetchResult,
