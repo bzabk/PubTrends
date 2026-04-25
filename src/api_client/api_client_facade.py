@@ -1,5 +1,4 @@
 import asyncio
-
 from src.api_client.api_availability_service import ApiAvailabilityService
 from src.api_client.api_data_fetcher import FetchDataService
 from src.api_client.async_limiter import AsyncLimiter
