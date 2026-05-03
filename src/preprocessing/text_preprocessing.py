@@ -1,5 +1,6 @@
 import string
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 
 from nltk.corpus import stopwords
 from sklearn.cluster import KMeans
@@ -14,26 +15,17 @@ class Processor(ABC):
 
 
 class ProcessorFactory:
-    """
-    Returns an instance of a processor based on the given processor name.
-    Parameters:
-    processor_name (str): The name of the processor to create.
-                          Options are "remove_punctuation", "tsne", "kmeans", "tfidf".
-    **kwargs: Additional keyword arguments to pass to the processor's constructor.
-    Returns:
-    Processor: An instance of the requested processor.
-    """
+    PROCESSORS: dict[str, Callable[..., Processor]] = {
+        "text_processor": lambda **_: TextProcessor(),
+        "tsne": lambda **kwargs: TSNEProcessor(**kwargs),
+        "kmeans": lambda **kwargs: KMeansProcessor(**kwargs),
+        "tfidf": lambda **kwargs: TFIDFProcessor(**kwargs),
+    }
 
     @staticmethod
     def get_processor(processor_name, **kwargs):
-        if processor_name == "remove_punctuation":
-            return TextProcessor()
-        elif processor_name == "tsne":
-            return TSNEProcessor(**kwargs)
-        elif processor_name == "kmeans":
-            return KMeansProcessor(**kwargs)
-        elif processor_name == "tfidf":
-            return TFIDFProcessor(**kwargs)
+        factory = ProcessorFactory.PROCESSORS[processor_name]
+        return factory(**kwargs)
 
 
 class TextProcessor(Processor):
@@ -48,7 +40,7 @@ class TextProcessor(Processor):
     """
 
     def process(self, data):
-        data = data.fillna("")
+        data = data.copy().fillna("")
         data["Experiment_type"] = data["Experiment_type"].apply(
             self._standardize_experiment_type
         )
@@ -65,12 +57,15 @@ class TextProcessor(Processor):
 
     @staticmethod
     def _concatenate_text(data):
-        try:
-            data["Text"] = data[
-                ["Title", "Summary", "Overall_design", "Experiment_type", "Organism"]
-            ].apply(lambda x: " ".join(x), axis=1)
-        except Exception as e:
-            print(e)
+        required_columns = [
+            "Title",
+            "Summary",
+            "Overall_design",
+            "Experiment_type",
+            "Organism",
+        ]
+
+        data["Text"] = data[required_columns].apply(lambda x: " ".join(x), axis=1)
         return data
 
     @staticmethod
@@ -171,7 +166,7 @@ class KMeansProcessor(Processor):
         Returns:
         numpy.ndarray: The cluster centers.
         """
-        self.cluster.fit_transform(data)
+        return self.cluster.fit_predict(data)
 
 
 class TFIDFProcessor(Processor):

@@ -16,12 +16,6 @@ def reset_select_boxes() -> None:
     st.session_state["Experiment_type"] = "<select>"
 
 
-def read_initial_pmids_from_the_file():
-    with open("src/api_client/PMIDs_list.txt") as f:
-        pmids = [int(line.strip()) for line in f if line.strip().isdigit()]
-        return list(set(pmids))
-
-
 def hex_to_rgba(hex_color, alpha) -> str:
     """
     Converting hex color format to rgb
@@ -32,29 +26,7 @@ def hex_to_rgba(hex_color, alpha) -> str:
     return f"rgb({int(rgba[0] * 255)}, {int(rgba[1] * 255)}, {int(rgba[2] * 255)})"
 
 
-def validate_chosen_file(uploaded_file, min_len_pmid_list) -> list[str] | None:
-    """
-    Function checks whether the uploaded file is in the correct format and extracts PMIDs from it.
-    In case user uploaded less than 10 correct PMIDs, an error message is displayed.
-    If txt file contains less than 10 PMIDs, the error message is displayed.
 
-    :param uploaded_file: The file uploaded by the user.
-
-    :return list[int]: A list of unique PMIDs extracted from the file.
-    """
-    if uploaded_file is None:
-        raise PmidTxtFileIsNoneException
-    file_content = uploaded_file.read().decode("utf-8")
-    list_of_pmids = []
-    pmids = file_content.split("\n")
-    for line in pmids:
-        line = line.replace(" ", "").strip()
-        if line.isdigit():
-            list_of_pmids.append(str(line))
-    list_of_pmids = list(set(list_of_pmids))
-    if len(list_of_pmids) < min_len_pmid_list:
-        raise NotEnoughPmidsInTxtFileException
-    return list_of_pmids
 
 
 def create_hover_text(is_selected: int) -> list[str]:
@@ -71,13 +43,6 @@ def create_hover_text(is_selected: int) -> list[str]:
     return hover_text_selected
 
 
-def load_css_styles() -> None:
-    """
-    Load CSS styles responsible for setting a fixed sidebar width.
-    """
-    css_path = "src/app/static/style.css"
-    with open(css_path) as css:
-        st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
 
 
 def set_colors_and_opacity() -> None:
@@ -210,7 +175,7 @@ def preprocess_raw_text() -> None:
         from src.preprocessing.text_preprocessing import ProcessorFactory
 
         st.session_state.remove_punctuation = ProcessorFactory.get_processor(
-            "remove_punctuation"
+            "text_processor"
         )
 
     st.session_state.pmid_df = st.session_state.remove_punctuation.process(

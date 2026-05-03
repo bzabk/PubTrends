@@ -47,7 +47,10 @@ class FetchDataService:
         )
 
     async def fetch_batch(self, pmids: list[str]) -> BatchFetchResult:
+
         cached_records = await self.cache_repository.get(pmids)
+        # TODO retry for failed pmids
+
         cache_hits = self._extract_hit_pmids(cached_records)
         missing_pmids = [pmid for pmid in pmids if pmid not in set(cache_hits)]
 
@@ -73,6 +76,7 @@ class FetchDataService:
             else:
                 failed_pmids.append(result.pmid)
 
+
         await self.cache_repository.insert(cache_entries)
 
         cached_dataframe = ApiDataFrameMapper.records_to_dataframe(cached_records)
@@ -84,8 +88,8 @@ class FetchDataService:
             partial_dataframes=partial_dataframes,
             failed_pmids=failed_pmids,
             no_data_pmids=no_data_pmids,
-            cache_hits=[],
-            cache_misses=[],
+            cache_hits=cache_hits,
+            cache_misses=missing_pmids,
         )
 
     async def _fetch_single_pmid_semaphore(self, pmid: str) -> SinglePmidFetchResult:

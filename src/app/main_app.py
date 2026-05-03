@@ -1,107 +1,117 @@
-import asyncio
+import os
 
+import pandas as pd
 import streamlit as st
 
-from src.api_client.apiclient import ApiClient
-from src.api_client.db_cache.redis_dataset_cache_repository import RedisCaching
-from src.app.dataset_loading_service import DatasetLoadingService
-from src.app.front_model_utils import (
-    read_initial_pmids_from_the_file,
-)
+from src.api_client.api_client_facade import ApiClientFacade
 from src.app.message_service import MessageService
 from src.app.preprocessing_service import PreprocessingService
-from src.app.statemanager import SessionStateManager
 from src.app.ui_service import UIService
-from src.exceptions.api_client_exceptions import ResponseStatusException
-from src.exceptions.front_model_exceptions import NotEnoughPmidsInTxtFileException
+from src.exceptions.api_client_exceptions import (
+    ApiUnavailableException,
+    InvalidApiKeyException,
+    MissingAPIKeyError,
+    ResponseStatusException,
+)
+from src.exceptions.front_model_exceptions import (
+    EmptyDataFrameException,
+    NotEnoughPmidsInTxtFileException,
+    PmidTxtFileIsNoneException,
+)
 
 
 class MainApp:
+    SESSION_DEFAULTS = {
+        "pmid_df": None,
+        "success_flag": False,
+        "uploaded_file": None,
+        "current_labels": None,
+        "current_X": None,
+        "kmeans_processor": None,
+        "tfidf_processor": None,
+        "tsne_processor": None,
+        "api_key": None,
+        "max_features": 12,
+        "num_clusters": 8,
+        "current_num_clusters": None,
+        "remove_punctuation": None,
+        "pmid_list": None
+    }
+    REDIS_URL_TEMPLATE = "redis://{host}:{port}"
+
     def __init__(self):
-        self.progress_bar_placeholder = None
-        self.error_placeholder = None
-        self.message_service: None | MessageService = None
-        self.session_manager = SessionStateManager(st.session_state)
-        self.redis_client = RedisCaching()
+        self._initialize_session_state()
+        self.apiclient = ApiClientFacade(redis_url=self._build_redis_url())
+        self._restore_api_client_state()
 
-        self.apiclient = ApiClient(
-            redis_client=self.redis_client, api_key=self.session_manager.get("api_key")
-        )
-
-        self.dataset_loading_service = DatasetLoadingService(
-            apiclient=self.apiclient, redis_client=self.redis_client
-        )
-        self.preprocessing_service = PreprocessingService(
-            session_manager=self.session_manager
-        )
+        self.preprocessing_service = PreprocessingService()
         self.ui_service = UIService()
+        self.message_service = None
 
-    # ----------------------------------- Layout app -----------------------------------
+    def _initialize_session_state(self) -> None:
+        for key, value in self.SESSION_DEFAULTS.items():
+            st.session_state.setdefault(key, value)
+
+    def _restore_api_client_state(self) -> None:
+        api_key = st.session_state.get("api_key")
+        if api_key:
+            self.apiclient.set_api_key(api_key)
+
+    def _build_redis_url(self) -> str:
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        redis_port = os.getenv("REDIS_PORT", "6379")
+        return self.REDIS_URL_TEMPLATE.format(host=redis_host, port=redis_port)
+
     def run(self):
-        self.prepare_main_window()
-        self.prepare_side_bar()
-        self.prepare_tabs()
+        error_placeholder, progress_bar_placeholder = self.ui_service.render_main_window()
+        self.message_service = MessageService(error_placeholder, progress_bar_placeholder)
 
-    def prepare_main_window(self) -> None:
-        self.error_placeholder, self.progress_bar_placeholder = (
-            self.ui_service.render_main_window()
-        )
-        self.message_service = MessageService(
-            error_placeholder=self.error_placeholder,
-            progress_bar_placeholder=self.progress_bar_placeholder,
-        )
+        sidebar_state = self.ui_service.render_sidebar()
+        self._sync_sidebar_state(sidebar_state)
+        self._handle_sidebar_actions(sidebar_state)
+        self.ui_service.render_tabs()
 
-    def prepare_side_bar(self) -> None:
+    def _sync_sidebar_state(self, sidebar_state) -> None:
+        st.session_state["max_features"] = sidebar_state.max_features
+        st.session_state["num_clusters"] = sidebar_state.num_clusters
 
-        sidebar_state = self.ui_service.render_sidebar(
-            self.session_manager.get("api_key")
-        )
+    def _handle_sidebar_actions(self, sidebar_state) -> None:
+        try:
+            if sidebar_state.save_api_key_clicked:
+                self._save_api_key(sidebar_state.api_key)
+            if sidebar_state.load_pmids_clicked:
+                self.preprocessing_service.validate_chosen_file(sidebar_state.uploaded_file)
+                self._load_dataset(load_default_dataset=False)
+            if sidebar_state.load_toy_clicked:
+                self._load_dataset(load_default_dataset=True)
+        except (PmidTxtFileIsNoneException, NotEnoughPmidsInTxtFileException) as exc:
+            self.message_service.error(str(exc))
+        except (MissingAPIKeyError, ResponseStatusException, EmptyDataFrameException) as exc:
+            self.message_service.error(str(exc))
+        except Exception as exc:
+            self.message_service.error(f"Unexpected error: {exc}")
 
-        self.session_manager.set("uploaded_file", sidebar_state["uploaded_file"])
-        self.session_manager.set("max_features", sidebar_state["max_features"])
-        self.session_manager.set("num_clusters", sidebar_state["num_clusters"])
+    def _save_api_key(self, api_key: str) -> None:
+        errors = self.apiclient.check_api_availability(api_key)
+        if any(isinstance(error, InvalidApiKeyException) for error in errors):
+            self.message_service.error("Invalid API key")
+            return
+        if any(isinstance(error, ApiUnavailableException) for error in errors):
+            self.message_service.error("API is unavailable")
+            return
+        if errors:
+            self.message_service.error(f"Unexpected error: {errors}")
+            return
+        self.apiclient.set_api_key(api_key)
+        st.session_state["api_key"] = api_key
+        self.message_service.success("API key saved.")
 
-        if sidebar_state["save_api_key_clicked"]:
-            try:
-                self.session_manager.set("api_key", sidebar_state["api_key"])
-                self.apiclient.api_key = sidebar_state["api_key"]
-                asyncio.run(self.apiclient.check_api_availability(with_api_key=True))
-                self.message_service.success(
-                    message="API key is valid and saved successfully"
-                )
-            except ResponseStatusException as e:
-                self.message_service.error(e.message)
+    def _load_dataset(self,load_default_dataset: bool) -> None:
+        if load_default_dataset:
+            st.session_state["pmid_df"] = pd.read_csv("src/api_client/redis_data/toy_dataset.csv")
+            self.preprocessing_service.process_dataframe_from_session_cache()
+        else:
 
-        if sidebar_state["load_pmids_clicked"]:
-            try:
-                self.handle_user_dataset()
-            except NotEnoughPmidsInTxtFileException as e:
-                self.message_service.error(e.message)
+            st.session_state["pmid_df"] = self.apiclient.fetch_dataframe(st.session_state["pmid_list"]).dataframe
+            self.preprocessing_service.process_dataframe_from_session_cache()
 
-        if sidebar_state["load_toy_clicked"]:
-            self.load_data_from_redis()
-
-    def prepare_tabs(self) -> None:
-        self.ui_service.render_tabs(session_manager=self.session_manager)
-
-    def load_data_from_redis(self) -> None:
-        """
-        Handles the loading and preprocessing of a dataset.
-
-        """
-        initial_pmids = read_initial_pmids_from_the_file()
-        self.session_manager.set(
-            "pmid_df",
-            self.dataset_loading_service.load_initial_dataset_from_redis(initial_pmids),
-        )
-        self.preprocessing_service.process_loaded_toy_dataset()
-
-    # ----------------------------------- User data handling -----------------------------------
-    def handle_user_dataset(self) -> None:
-        self.session_manager.set(
-            "pmid_df",
-            self.dataset_loading_service.load_user_dataset(
-                uploaded_file=self.session_manager.get("uploaded_file")
-            ),
-        )
-        self.preprocessing_service.process_loaded_user_dataset()

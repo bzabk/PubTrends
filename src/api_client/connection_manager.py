@@ -1,10 +1,13 @@
 import asyncio
+import json
 from typing import Any, Literal
 
 import aiohttp
 
 from src.exceptions.api_client_exceptions import (
+    ApiUnavailableException,
     HttpStatusException,
+    InvalidApiKeyException,
     RequestException,
     SessionNotInitializedError,
 )
@@ -37,9 +40,7 @@ class ConnectionManager:
             await self._session.close()
             self._session = None
 
-    async def get_json(
-        self, url: str, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def get_json(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         return await self._send_request("GET", url, params=params, response_type="json")
 
     async def get_text(self, url: str, params: dict[str, Any] | None = None) -> str:
@@ -53,37 +54,43 @@ class ConnectionManager:
         params: dict[str, Any] | None = None,
     ) -> dict[str, Any] | str:
         if self._session is None:
-            raise SessionNotInitializedError("Session was not Initialized")
+            raise SessionNotInitializedError("Session was not initialized")
 
         last_error = None
         for attempt in range(1, self.retry_attempts + 1):
             try:
                 if self._async_limiter is not None:
                     await self._async_limiter.acquire()
-                async with self._session.request(
-                    method, url, params=params
-                ) as response:
+
+                async with self._session.request(method, url, params=params) as response:
+
                     if response.status >= 400:
-                        body = await response.text()
-                        raise HttpStatusException(
-                            response.status, str(response.url), body
-                        )
+                        error_text = await response.text()
+                        error_data = {}
+                        try:
+                            error_data = json.loads(error_text)
+                        except json.JSONDecodeError:
+                            pass
+
+                        if error_data.get("error") == "API key invalid":
+                            raise InvalidApiKeyException()
+
+                        if error_data.get("ERROR")== "Couldn't resolve #exLinkSrv2, the address table is empty.":
+                            raise ApiUnavailableException()
+
+                        raise HttpStatusException()
 
                     if response_type == "json":
                         return await response.json()
-                    else:
-                        return await response.text()
-            except (TimeoutError, aiohttp.ClientError, HttpStatusException) as e:
-                last_error = e
-                if (
-                    isinstance(e, HttpStatusException)
-                    and 400 <= e.status < 500
-                    and e.status not in (429, 408)
-                ):
-                    raise RequestException(str(e)) from e
+                    return await response.text()
 
+            except (InvalidApiKeyException, ApiUnavailableException):
+                raise
+
+            except Exception as exc:
+                last_error = exc
                 if attempt == self.retry_attempts:
                     break
                 await asyncio.sleep(self.delay_s * attempt)
 
-        raise RequestException(str(last_error)) from last_error
+        raise RequestException("Request failed after retries") from last_error
