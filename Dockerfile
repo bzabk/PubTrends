@@ -1,17 +1,18 @@
-FROM python:3.14-slim
+FROM python:3.13-slim
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt && \
-    python -m nltk.downloader stopwords -d /usr/local/share/nltk_data stopwords
+COPY pyproject.toml uv.lock ./
 
+RUN uv sync --frozen --no-install-project --no-dev
 
-COPY . .
-EXPOSE 8501
+COPY main.py .
+COPY src ./src
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD python -c "import socket; s=socket.socket(); s.connect(('127.0.0.1', 8501)); s.close()"
+RUN uv sync --frozen --no-dev
 
-CMD ["streamlit","run","main.py","--server.port=8501","--server.address=0.0.0.0"]
+RUN uv run python -m nltk.downloader stopwords -d /usr/local/share/nltk_data stopwords
+
+CMD ["uv", "run", "streamlit", "run", "main.py"]

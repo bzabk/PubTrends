@@ -131,9 +131,7 @@ def test_combine_dataframes_ignores_empty_inputs_and_preserves_row_order():
         columns=ApiDataFrameMapper.dataframe_columns(),
     )
 
-    result = ApiDataFrameMapper.combine_dataframes(
-        [None, pd.DataFrame(), first, second]
-    )
+    result = ApiDataFrameMapper.combine_dataframes([None, pd.DataFrame(), first, second])
 
     expected = pd.concat([first, second], axis=0, ignore_index=True)
 

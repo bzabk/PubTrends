@@ -14,9 +14,7 @@ def parse_pmid_to_dbidx(response_result: dict[str, Any], pmid: str) -> DatasetLi
     return DatasetLinkDto(pmid=pmid, db_ids=db_ids)
 
 
-def parse_dataset_summary(
-    response_result: dict[str, Any], db_idx: str
-) -> DatasetSummaryDto:
+def parse_dataset_summary(response_result: dict[str, Any], db_idx: str) -> DatasetSummaryDto:
     try:
         item = response_result["result"][db_idx]
     except Exception as e:

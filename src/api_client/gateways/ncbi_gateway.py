@@ -21,7 +21,5 @@ class AsyncNcbiGateway:
                 },
             )
         except Exception as e:
-            raise GatewayException(
-                f"Failed to fetch overall design for {gse_code}"
-            ) from e
+            raise GatewayException(f"Failed to fetch overall design for {gse_code}") from e
         return parse_overall_design(result, gse_code=gse_code)

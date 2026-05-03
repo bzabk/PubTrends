@@ -48,9 +48,7 @@ async def test_insert_empty_entries_is_noop(cache_repository):
 
 
 @pytest.mark.redis
-async def test_insert_then_get_result_returns_appropriate_records(
-    cache_repository, sample_entries
-):
+async def test_insert_then_get_result_returns_appropriate_records(cache_repository, sample_entries):
     await cache_repository.insert(sample_entries)
 
     cached_records = await cache_repository.get(["11111", "22222", "33333"])
@@ -65,9 +63,7 @@ async def test_get_not_existing_key_returns_empty_list(cache_repository):
 
 
 @pytest.mark.redis
-async def test_get_raises_cache_serialization_error_for_invalid_cached_value(
-    cache_repository, redis_client
-):
+async def test_get_raises_cache_serialization_error_for_invalid_cached_value(cache_repository, redis_client):
     key = cache_repository._make_key("44444")
     await redis_client.set(key, "invalid_data")
 

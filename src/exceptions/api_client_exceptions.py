@@ -44,3 +44,11 @@ class CacheSerializationError(Exception):
 
 class MissingAPIKeyError(Exception):
     pass
+
+
+class ApiUnavailableException(Exception):
+    pass
+
+
+class InvalidApiKeyException(Exception):
+    pass
