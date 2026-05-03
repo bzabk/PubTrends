@@ -56,9 +56,7 @@ class UIService:
                 accept_multiple_files=False,
                 label_visibility="collapsed",
             )
-            load_pmids_clicked = uploaded_file is not None and st.button(
-                "Load PMIDs file", use_container_width=True
-            )
+            load_pmids_clicked = uploaded_file is not None and st.button("Load PMIDs file", use_container_width=True)
 
             st.caption("or choose a toy dataset")
             load_toy_clicked = st.button("Load toy dataset", use_container_width=True)
@@ -114,9 +112,7 @@ class UIService:
             st.warning("The dataset is empty.")
             return
 
-        selected_pmid, selected_organism, selected_experiment_type = self._render_filters(
-            pmid_df
-        )
+        selected_pmid, selected_organism, selected_experiment_type = self._render_filters(pmid_df)
         if st.button("Filter"):
             filtered_df = self._apply_filters(
                 pmid_df,
@@ -172,9 +168,7 @@ class UIService:
         if selected_organism != self.SELECT_PLACEHOLDER:
             conditions.append(filtered_df["Organism"] == selected_organism)
         if selected_experiment_type != self.SELECT_PLACEHOLDER:
-            conditions.append(
-                filtered_df["Experiment_type"] == selected_experiment_type
-            )
+            conditions.append(filtered_df["Experiment_type"] == selected_experiment_type)
 
         if conditions:
             filtered_df["is_selected"] = np.logical_and.reduce(conditions).astype(int)
@@ -183,15 +177,10 @@ class UIService:
         return filtered_df
 
     def _render_dataframe_preview(self, pmid_df: pd.DataFrame) -> None:
-        available_columns = [
-            column for column in self.DATAFRAME_COLUMNS if column in pmid_df.columns
-        ]
+        available_columns = [column for column in self.DATAFRAME_COLUMNS if column in pmid_df.columns]
         if not available_columns:
             st.warning("The dataset does not contain the expected preview columns.")
             return
 
-        if "is_selected" in pmid_df.columns:
-            filtered_df = pmid_df[pmid_df["is_selected"] == 1]
-        else:
-            filtered_df = pmid_df
+        filtered_df = pmid_df[pmid_df["is_selected"] == 1] if "is_selected" in pmid_df.columns else pmid_df
         st.dataframe(filtered_df[available_columns])

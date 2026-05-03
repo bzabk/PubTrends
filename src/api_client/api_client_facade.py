@@ -21,7 +21,7 @@ class ApiClientFacade:
     def __init__(self, redis_url: str = "redis://localhost:6379"):
         self._redis_url = redis_url
         self._api_key = None
-        self._executor = ThreadPoolExecutor(max_workers=4)
+        self._executor = ThreadPoolExecutor()
 
     def set_api_key(self, api_key: str | None) -> None:
         self._api_key = api_key
@@ -56,9 +56,5 @@ class ApiClientFacade:
             await redis_client.close()
 
     async def _check_api_availability_async(self, api_key: str) -> list[Exception]:
-        async with ConnectionManager(
-            async_limiter=AsyncLimiter()
-        ) as connection_manager:
-            return await ApiAvailabilityService(connector=connection_manager).check(
-                api_key
-            )
+        async with ConnectionManager(async_limiter=AsyncLimiter()) as connection_manager:
+            return await ApiAvailabilityService(connector=connection_manager).check(api_key)

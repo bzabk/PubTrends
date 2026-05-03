@@ -41,9 +41,7 @@ class TextProcessor(Processor):
 
     def process(self, data):
         data = data.copy().fillna("")
-        data["Experiment_type"] = data["Experiment_type"].apply(
-            self._standardize_experiment_type
-        )
+        data["Experiment_type"] = data["Experiment_type"].apply(self._standardize_experiment_type)
         data = self._concatenate_text(data)
         data["Text"] = data["Text"].apply(lambda x: self._remove_punctuation(x))
         data["Text"] = data["Text"].apply(lambda x: self._remove_stop_words(x))
@@ -75,9 +73,7 @@ class TextProcessor(Processor):
     @staticmethod
     def _remove_stop_words(text):
         stop_words = set(stopwords.words("english"))
-        return " ".join(
-            [word for word in text.split() if word.lower() not in stop_words]
-        )
+        return " ".join([word for word in text.split() if word.lower() not in stop_words])
 
     @staticmethod
     def _standardize_experiment_type(text: str) -> str:
@@ -181,9 +177,7 @@ class TFIDFProcessor(Processor):
         Parameters:
         max_features (int): The maximum number of features to consider. Default is 100.
         """
-        self.vectorizer = TfidfVectorizer(
-            max_features=max_features, stop_words="english", min_df=2
-        )
+        self.vectorizer = TfidfVectorizer(max_features=max_features, stop_words="english", min_df=2)
 
     def process(self, data):
         """

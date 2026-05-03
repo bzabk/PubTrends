@@ -35,7 +35,7 @@ class MainApp:
         "num_clusters": 8,
         "current_num_clusters": None,
         "remove_punctuation": None,
-        "pmid_list": None
+        "pmid_list": None,
     }
     REDIS_URL_TEMPLATE = "redis://{host}:{port}"
 
@@ -106,12 +106,10 @@ class MainApp:
         st.session_state["api_key"] = api_key
         self.message_service.success("API key saved.")
 
-    def _load_dataset(self,load_default_dataset: bool) -> None:
+    def _load_dataset(self, load_default_dataset: bool) -> None:
         if load_default_dataset:
             st.session_state["pmid_df"] = pd.read_csv("src/api_client/redis_data/toy_dataset.csv")
             self.preprocessing_service.process_dataframe_from_session_cache()
         else:
-
             st.session_state["pmid_df"] = self.apiclient.fetch_dataframe(st.session_state["pmid_list"]).dataframe
             self.preprocessing_service.process_dataframe_from_session_cache()
-

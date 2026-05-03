@@ -1,10 +1,5 @@
 import streamlit as st
 
-from src.exceptions.front_model_exceptions import (
-    NotEnoughPmidsInTxtFileException,
-    PmidTxtFileIsNoneException,
-)
-
 
 def reset_select_boxes() -> None:
     """
@@ -26,9 +21,6 @@ def hex_to_rgba(hex_color, alpha) -> str:
     return f"rgb({int(rgba[0] * 255)}, {int(rgba[1] * 255)}, {int(rgba[2] * 255)})"
 
 
-
-
-
 def create_hover_text(is_selected: int) -> list[str]:
     hover_text_selected = [
         (
@@ -36,13 +28,9 @@ def create_hover_text(is_selected: int) -> list[str]:
             f"PMID: {row['Pmid']}<br>Organism: {row['Organism']}<br>"
             f"Experiment_type: {row['Experiment_type']}"
         )
-        for _, row in st.session_state.pmid_df[
-            st.session_state.pmid_df["is_selected"] == is_selected
-        ].iterrows()
+        for _, row in st.session_state.pmid_df[st.session_state.pmid_df["is_selected"] == is_selected].iterrows()
     ]
     return hover_text_selected
-
-
 
 
 def set_colors_and_opacity() -> None:
@@ -76,20 +64,12 @@ def create_trace(is_selected: int, opacity: float, hover_text: list[str]):
     import plotly.graph_objects as go
 
     return go.Scatter3d(
-        x=st.session_state.current_X[
-            st.session_state.pmid_df["is_selected"] == is_selected, 0
-        ],
-        y=st.session_state.current_X[
-            st.session_state.pmid_df["is_selected"] == is_selected, 1
-        ],
-        z=st.session_state.current_X[
-            st.session_state.pmid_df["is_selected"] == is_selected, 2
-        ],
+        x=st.session_state.current_X[st.session_state.pmid_df["is_selected"] == is_selected, 0],
+        y=st.session_state.current_X[st.session_state.pmid_df["is_selected"] == is_selected, 1],
+        z=st.session_state.current_X[st.session_state.pmid_df["is_selected"] == is_selected, 2],
         mode="markers",
         marker={
-            "color": st.session_state.pmid_df["colors"][
-                st.session_state.pmid_df["is_selected"] == is_selected
-            ],
+            "color": st.session_state.pmid_df["colors"][st.session_state.pmid_df["is_selected"] == is_selected],
             "size": 8,
             "opacity": opacity,
         },
@@ -114,9 +94,7 @@ def load_3d_plot(plot_width, plot_height):
     hover_text_not_selected = create_hover_text(is_selected=0)
     # set of selected points with opacity 1
     trace1 = create_trace(is_selected=1, opacity=1, hover_text=hover_text_selected)
-    trace2 = create_trace(
-        is_selected=0, opacity=0.08, hover_text=hover_text_not_selected
-    )
+    trace2 = create_trace(is_selected=0, opacity=0.08, hover_text=hover_text_not_selected)
 
     fig = go.Figure()
     fig.add_trace(trace1)
@@ -149,9 +127,7 @@ def validate_user_preprocessing_parameters(perplexity) -> None:
     perplexity = min(perplexity, n_samples - 1)
 
     st.session_state.current_num_clusters = st.session_state.num_clusters
-    st.session_state.tsne_processor = ProcessorFactory.get_processor(
-        "tsne", perplexity=perplexity
-    )
+    st.session_state.tsne_processor = ProcessorFactory.get_processor("tsne", perplexity=perplexity)
     st.session_state.kmeans_processor = ProcessorFactory.get_processor(
         "kmeans", n_clusters=st.session_state.num_clusters
     )
@@ -174,20 +150,10 @@ def preprocess_raw_text() -> None:
     if st.session_state.get("remove_punctuation") is None:
         from src.preprocessing.text_preprocessing import ProcessorFactory
 
-        st.session_state.remove_punctuation = ProcessorFactory.get_processor(
-            "text_processor"
-        )
+        st.session_state.remove_punctuation = ProcessorFactory.get_processor("text_processor")
 
-    st.session_state.pmid_df = st.session_state.remove_punctuation.process(
-        st.session_state.pmid_df
-    )
-    st.session_state.current_X = st.session_state.tfidf_processor.process(
-        st.session_state.pmid_df["Text"]
-    )
-    st.session_state.current_X = st.session_state.tsne_processor.process(
-        st.session_state.current_X
-    )
+    st.session_state.pmid_df = st.session_state.remove_punctuation.process(st.session_state.pmid_df)
+    st.session_state.current_X = st.session_state.tfidf_processor.process(st.session_state.pmid_df["Text"])
+    st.session_state.current_X = st.session_state.tsne_processor.process(st.session_state.current_X)
     st.session_state.kmeans_processor.process(st.session_state.current_X)
-    st.session_state.current_labels = (
-        st.session_state.kmeans_processor.cluster.labels_.astype(str)
-    )
+    st.session_state.current_labels = st.session_state.kmeans_processor.cluster.labels_.astype(str)

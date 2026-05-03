@@ -23,23 +23,17 @@ class RedisDatasetCacheRepository(DatasetCacheRepository):
         try:
             return bool(await self._client.exists(self._make_key(key)))
         except RedisError as e:
-            raise RedisRequestException(
-                f"Redis exists operation failed for key: {key}"
-            ) from e
+            raise RedisRequestException(f"Redis exists operation failed for key: {key}") from e
 
     async def insert(self, entries: Sequence[CachedPmidRecords]) -> None:
         if not entries:
             return
         try:
             key_value_pairs = {
-                self._make_key(entry.pmid): self._serialize(entry.records)
-                for entry in entries
-                if entry.records
+                self._make_key(entry.pmid): self._serialize(entry.records) for entry in entries if entry.records
             }
         except CacheSerializationError as e:
-            raise CacheSerializationError(
-                "Failed to serialize cache records before Redis insert"
-            ) from e
+            raise CacheSerializationError("Failed to serialize cache records before Redis insert") from e
         if not key_value_pairs:
             return
         try:
@@ -62,9 +56,7 @@ class RedisDatasetCacheRepository(DatasetCacheRepository):
                 try:
                     results.extend(self._deserialize(raw_value))
                 except CacheSerializationError as e:
-                    raise CacheSerializationError(
-                        f"Failed to deserialize cached value for key: {key}"
-                    ) from e
+                    raise CacheSerializationError(f"Failed to deserialize cached value for key: {key}") from e
         return results
 
     def _make_key(self, pmid: str) -> str:
@@ -74,15 +66,11 @@ class RedisDatasetCacheRepository(DatasetCacheRepository):
         try:
             return json.dumps([asdict(record) for record in records])
         except TypeError as e:
-            raise CacheSerializationError(
-                "Failed to serialize cached dataset records"
-            ) from e
+            raise CacheSerializationError("Failed to serialize cached dataset records") from e
 
     def _deserialize(self, raw_value: str) -> list[CachedDatasetRecord]:
         try:
             decoded = json.loads(raw_value)
             return [CachedDatasetRecord(**item) for item in decoded]
         except (json.JSONDecodeError, TypeError) as e:
-            raise CacheSerializationError(
-                "Failed to deserialize cached dataset records"
-            ) from e
+            raise CacheSerializationError("Failed to deserialize cached dataset records") from e

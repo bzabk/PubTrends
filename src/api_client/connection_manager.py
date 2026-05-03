@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 from typing import Any, Literal
 
@@ -63,19 +64,16 @@ class ConnectionManager:
                     await self._async_limiter.acquire()
 
                 async with self._session.request(method, url, params=params) as response:
-
                     if response.status >= 400:
                         error_text = await response.text()
                         error_data = {}
-                        try:
+                        with contextlib.suppress(json.JSONDecodeError):
                             error_data = json.loads(error_text)
-                        except json.JSONDecodeError:
-                            pass
 
                         if error_data.get("error") == "API key invalid":
                             raise InvalidApiKeyException()
 
-                        if error_data.get("ERROR")== "Couldn't resolve #exLinkSrv2, the address table is empty.":
+                        if error_data.get("ERROR") == "Couldn't resolve #exLinkSrv2, the address table is empty.":
                             raise ApiUnavailableException()
 
                         raise HttpStatusException()

@@ -37,9 +37,7 @@ class FetchDataService:
 
     async def fetch_dataframe(self, pmids: list[str]) -> FetchDataframeResult:
         batch_result = await self.fetch_batch(pmids)
-        combined_dataframe = ApiDataFrameMapper.combine_dataframes(
-            batch_result.partial_dataframes
-        )
+        combined_dataframe = ApiDataFrameMapper.combine_dataframes(batch_result.partial_dataframes)
         return FetchDataframeResult(
             dataframe=combined_dataframe,
             failed_pmids=batch_result.failed_pmids,
@@ -66,16 +64,13 @@ class FetchDataService:
         for result in single_pmid_results:
             if result.status == "success":
                 fresh_records.extend(result.records)
-                cache_entries.append(
-                    CachedPmidRecords(pmid=result.pmid, records=result.records)
-                )
+                cache_entries.append(CachedPmidRecords(pmid=result.pmid, records=result.records))
                 if result.dataframe is not None and not result.dataframe.empty:
                     partial_dataframes.append(result.dataframe)
             elif result.status == "no_data":
                 no_data_pmids.append(result.pmid)
             else:
                 failed_pmids.append(result.pmid)
-
 
         await self.cache_repository.insert(cache_entries)
 
@@ -103,19 +98,13 @@ class FetchDataService:
                 return SinglePmidFetchResult.no_data(pmid)
 
             summaries = await asyncio.gather(
-                *(
-                    self.eutils_gateway.get_dataset_summary(db_id)
-                    for db_id in dataset_link.db_ids
-                )
+                *(self.eutils_gateway.get_dataset_summary(db_id) for db_id in dataset_link.db_ids)
             )
             if not summaries:
                 return SinglePmidFetchResult.no_data(pmid)
 
             overall_designs = await asyncio.gather(
-                *(
-                    self.ncbi_gateway.get_overall_design(summary.gse_code)
-                    for summary in summaries
-                )
+                *(self.ncbi_gateway.get_overall_design(summary.gse_code) for summary in summaries)
             )
 
             single_pmid_df = ApiDataFrameMapper.create_dataframe_from_single_pmid(
