@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
     "numpy",
     "streamlit",
+    "pyarrow<24.0.0",
     "pandas",
     "plotly",
     "matplotlib",
