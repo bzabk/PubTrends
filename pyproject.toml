@@ -6,30 +6,30 @@ build-backend = "setuptools.build_meta"
 name = "pubtrends"
 version = "0.1.0"
 dependencies = [
-    "numpy~=2.2.6",
-    "streamlit~=1.47.1",
-    "pandas~=2.3.1",
-    "plotly~=6.2.0",
-    "matplotlib~=3.10.3",
-    "redis~=6.2.0",
-    "aiohttp~=3.12.15",
-    "python-dotenv~=1.1.1",
-    "xmltodict~=0.14.2",
-    "nltk~=3.9.1",
-    "scikit-learn~=1.7.1",
+    "numpy",
+    "streamlit",
+    "pandas",
+    "plotly",
+    "matplotlib",
+    "redis",
+    "aiohttp",
+    "python-dotenv",
+    "xmltodict",
+    "nltk",
+    "scikit-learn",
 ]
 
 [project.optional-dependencies]
-test = [
-    "pytest~=8.4.1",
-    "pytest-asyncio~=0.24.0",
+ci_packages = [
+    "pytest",
+    "pytest-asyncio",
     "pytest-custom_exit_code",
     "ruff"
 ]
 
 [tool.ruff]
-line-length = 88
-target-version = "py314"
+line-length = 120
+target-version = "py313"
 
 include = [
     "src/**/*.py",

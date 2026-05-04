@@ -40,22 +40,14 @@ class ApiDataFrameMapper:
         ]
 
         summary_df = pd.DataFrame(summary_rows).drop_duplicates(subset=["db_idx"])
-        overall_design_df = pd.DataFrame(overall_design_rows).drop_duplicates(
-            subset=["GSE_code"]
-        )
+        overall_design_df = pd.DataFrame(overall_design_rows).drop_duplicates(subset=["GSE_code"])
         pmid_df = pd.DataFrame(pmid_rows)
 
-        return pmid_df.merge(summary_df, on="db_idx", how="left").merge(
-            overall_design_df, on="GSE_code", how="left"
-        )
+        return pmid_df.merge(summary_df, on="db_idx", how="left").merge(overall_design_df, on="GSE_code", how="left")
 
     @staticmethod
     def combine_dataframes(dataframes: list[pd.DataFrame]) -> pd.DataFrame:
-        filtered_dataframes = [
-            dataframe
-            for dataframe in dataframes
-            if dataframe is not None and not dataframe.empty
-        ]
+        filtered_dataframes = [dataframe for dataframe in dataframes if dataframe is not None and not dataframe.empty]
         if not filtered_dataframes:
             return pd.DataFrame(columns=ApiDataFrameMapper.dataframe_columns())
         return pd.concat(filtered_dataframes, axis=0, ignore_index=True)
