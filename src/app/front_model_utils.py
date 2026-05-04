@@ -1,6 +1,6 @@
 import streamlit as st
 
-from exceptions.front_model_exceptions import NotEnoughPmidsInTxtFileException, PmidTxtFileIsNoneException
+from src.exceptions.front_model_exceptions import NotEnoughPmidsInTxtFileException, PmidTxtFileIsNoneException
 
 
 def validate_chosen_file(uploaded_file, min_len_pmid_list) -> list[str] | None:
