@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ci_packages = [
+ci-packages = [
     "pytest",
     "pytest-asyncio",
     "pytest-custom_exit_code",
