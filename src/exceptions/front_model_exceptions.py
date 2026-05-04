@@ -1,25 +1,14 @@
 class FileValidationError(Exception):
-    def __init__(self, message="Failed to validate pmid txt file"):
-        self.message = message
-        super().__init__(self.message)
+    pass
 
 
 class PmidTxtFileIsNoneException(Exception):
-    def __init__(self, message="PMID text file is None"):
-        self.message = message
-        super().__init__(self.message)
+    pass
 
 
 class NotEnoughPmidsInTxtFileException(Exception):
-    def __init__(self, message="Not enough PMIDs in text file"):
-        self.message = message
-        super().__init__(self.message)
+    pass
 
 
 class EmptyDataFrameException(Exception):
-    def __init__(
-        self,
-        message="Empty PMID dataframe, failed to load both saved and unsaved pmids",
-    ):
-        self.message = message
-        super().__init__(self.message)
+    pass
