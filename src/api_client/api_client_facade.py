@@ -18,10 +18,11 @@ from src.exceptions.api_client_exceptions import MissingAPIKeyError
 
 
 class ApiClientFacade:
+    _executor = ThreadPoolExecutor()
+
     def __init__(self, redis_url: str = "redis://localhost:6379"):
         self._redis_url = redis_url
         self._api_key = None
-        self._executor = ThreadPoolExecutor()
 
     def set_api_key(self, api_key: str | None) -> None:
         self._api_key = api_key

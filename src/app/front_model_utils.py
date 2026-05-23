@@ -80,7 +80,7 @@ def set_colors_and_opacity() -> None:
     # looping through all points in dataframe and
     # setting opacity based on whether they were selected by user or not
     for idx, col in enumerate(list_of_colors):
-        if st.session_state.pmid_df["is_selected"].iloc[idx] == (idx + 1):
+        if st.session_state.pmid_df["is_selected"].iloc[idx] == 1:
             color_palette_final.append(hex_to_rgba(col, alpha=1))
         else:
             color_palette_final.append(hex_to_rgba(col, alpha=0.2))

@@ -31,8 +31,8 @@ class ConnectionManager:
         self._session = None
 
     async def __aenter__(self):
-        timeout = aiohttp.ClientTimeout(total=15)
-        connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
+        timeout = aiohttp.ClientTimeout(total=self._timeout_s)
+        connector = aiohttp.TCPConnector(limit=self._connector_limit)
         self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
         return self
 

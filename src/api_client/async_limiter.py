@@ -22,24 +22,3 @@ class AsyncLimiter:
         delay = scheduled_at - now
         if delay > 0:
             await asyncio.sleep(delay)
-
-            # if self._last_request is None:
-            #     self._last_request = time.monotonic()
-            #     return
-            #
-            # time_since_last_request = time.monotonic() - self._last_request
-            # if time_since_last_request>self._delay_between_requests:
-            #     self._last_request = time.monotonic()
-            #     return
-
-        # while True:
-        #     async with self._lock:
-        #         api_request_timestamp = time.monotonic()
-        #         while self._api_calls_timestamps and api_request_timestamp-self._api_calls_timestamps[0] > self._release_time:
-        #             self._api_calls_timestamps.popleft()
-        #         if len(self._api_calls_timestamps)<self._max_deque_size:
-        #             self._api_calls_timestamps.append(api_request_timestamp)
-        #             return
-        #         time_left = self._release_time - (api_request_timestamp-self._api_calls_timestamps[0])
-        #     if time_left > 0:
-        #         await asyncio.sleep(time_left)

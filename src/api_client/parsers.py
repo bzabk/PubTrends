@@ -17,16 +17,16 @@ def parse_pmid_to_dbidx(response_result: dict[str, Any], pmid: str) -> DatasetLi
 def parse_dataset_summary(response_result: dict[str, Any], db_idx: str) -> DatasetSummaryDto:
     try:
         item = response_result["result"][db_idx]
+        return DatasetSummaryDto(
+            db_idx=db_idx,
+            title=item["title"],
+            summary=item["summary"],
+            organism=item["taxon"],
+            experiment_type=item["gdstype"],
+            gse_code=item["accession"],
+        )
     except Exception as e:
         raise ParserError(f"Failed to parse dataset summary for {db_idx}") from e
-    return DatasetSummaryDto(
-        db_idx=db_idx,
-        title=item["title"],
-        summary=item["summary"],
-        organism=item["taxon"],
-        experiment_type=item["gdstype"],
-        gse_code=item["accession"],
-    )
 
 
 def parse_overall_design(xml_text: str, gse_code: str) -> OverallDesignDto:
