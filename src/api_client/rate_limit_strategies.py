@@ -1,6 +1,6 @@
 import asyncio
-from abc import abstractmethod, ABC
 import time
+from abc import ABC, abstractmethod
 from collections import deque
 
 
