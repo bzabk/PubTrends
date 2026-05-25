@@ -37,17 +37,26 @@ class FetchDataService:
 
     async def fetch_dataframe(self, pmids: list[str]) -> FetchDataframeResult:
         batch_result = await self.fetch_batch(pmids)
-        combined_dataframe = ApiDataFrameMapper.combine_dataframes(batch_result.partial_dataframes)
+
+        if batch_result.failed_pmids:
+            retry_result = await self.fetch_batch(batch_result.failed_pmids)
+            all_dataframes = batch_result.partial_dataframes + retry_result.partial_dataframes
+            final_failed = retry_result.failed_pmids
+            final_no_data = batch_result.no_data_pmids + retry_result.no_data_pmids
+        else:
+            all_dataframes = batch_result.partial_dataframes
+            final_failed = []
+            final_no_data = batch_result.no_data_pmids
+
         return FetchDataframeResult(
-            dataframe=combined_dataframe,
-            failed_pmids=batch_result.failed_pmids,
-            no_data_pmids=batch_result.no_data_pmids,
+            dataframe=ApiDataFrameMapper.combine_dataframes(all_dataframes),
+            failed_pmids=final_failed,
+            no_data_pmids=final_no_data,
         )
 
     async def fetch_batch(self, pmids: list[str]) -> BatchFetchResult:
 
         cached_records = await self.cache_repository.get(pmids)
-        # TODO retry for failed pmids
 
         cache_hits = self._extract_hit_pmids(cached_records)
         missing_pmids = [pmid for pmid in pmids if pmid not in set(cache_hits)]

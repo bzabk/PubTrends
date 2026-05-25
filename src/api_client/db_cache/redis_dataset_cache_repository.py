@@ -14,8 +14,6 @@ from src.exceptions.api_client_exceptions import (
 
 
 class RedisDatasetCacheRepository(DatasetCacheRepository):
-    _TTL_SECONDS = 7 * 24 * 3600
-
     def __init__(self, redis_client: aioredis.Redis):
         self._client = redis_client
         self._key_prefix = "pmid"
@@ -41,7 +39,7 @@ class RedisDatasetCacheRepository(DatasetCacheRepository):
         try:
             async with self._client.pipeline() as pipe:
                 for key, value in key_value_pairs.items():
-                    pipe.set(key, value, ex=self._TTL_SECONDS)
+                    pipe.set(key, value)
                 await pipe.execute()
         except RedisError as e:
             raise RedisRequestException("Redis insert operation failed") from e
