@@ -1,4 +1,5 @@
 import json
+import logging
 from collections.abc import Sequence
 from dataclasses import asdict
 
@@ -11,6 +12,8 @@ from src.exceptions.api_client_exceptions import (
     CacheSerializationError,
     RedisRequestException,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RedisDatasetCacheRepository(DatasetCacheRepository):
@@ -43,6 +46,7 @@ class RedisDatasetCacheRepository(DatasetCacheRepository):
                 await pipe.execute()
         except RedisError as e:
             raise RedisRequestException("Redis insert operation failed") from e
+        logger.debug("Cache insert: %d entries written", len(key_value_pairs))
 
     async def get(self, pmids: Sequence[str]) -> list[CachedDatasetRecord]:
         if not pmids:
@@ -58,8 +62,8 @@ class RedisDatasetCacheRepository(DatasetCacheRepository):
             if raw_value is not None:
                 try:
                     results.extend(self._deserialize(raw_value))
-                except CacheSerializationError as e:
-                    raise CacheSerializationError(f"Failed to deserialize cached value for key: {key}") from e
+                except CacheSerializationError:
+                    logger.warning("Skipping corrupted cache entry for key: %s", key)
         return results
 
     def _make_key(self, pmid: str) -> str:

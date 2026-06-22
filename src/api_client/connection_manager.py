@@ -1,9 +1,12 @@
 import asyncio
 import contextlib
 import json
+import logging
 from typing import Any, Literal
 
 import aiohttp
+
+logger = logging.getLogger(__name__)
 
 from src.exceptions.api_client_exceptions import (
     ApiUnavailableException,
@@ -60,6 +63,7 @@ class ConnectionManager:
         last_error = None
         for attempt in range(1, self.retry_attempts + 1):
             try:
+                logger.debug("GET %s (attempt %d/%d)", url, attempt, self.retry_attempts)
                 if self._async_limiter is not None:
                     await self._async_limiter.acquire()
 
@@ -89,6 +93,9 @@ class ConnectionManager:
                 last_error = exc
                 if attempt == self.retry_attempts:
                     break
-                await asyncio.sleep(self.delay_s * attempt)
+                delay = self.delay_s * attempt
+                logger.warning("Request failed (attempt %d/%d), retrying in %.1fs: %s", attempt, self.retry_attempts, delay, exc)
+                await asyncio.sleep(delay)
 
+        logger.error("Request failed after %d attempts: %s", self.retry_attempts, url)
         raise RequestException("Request failed after retries") from last_error

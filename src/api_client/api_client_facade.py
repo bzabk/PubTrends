@@ -1,6 +1,9 @@
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
+
+logger = logging.getLogger(__name__)
 
 import redis.asyncio as aioredis
 
@@ -39,6 +42,7 @@ class ApiClientFacade:
         return self._executor.submit(lambda: asyncio.run(coroutine_factory())).result()
 
     async def _fetch_dataframe_async(self, pmids: list[str]) -> FetchDataframeResult:
+        logger.info("ApiClientFacade: starting pipeline for %d PMIDs", len(pmids))
         redis_client = aioredis.from_url(self._redis_url)
         cache_repo = RedisDatasetCacheRepository(redis_client=redis_client)
 

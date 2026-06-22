@@ -1,6 +1,10 @@
+import logging
+
 from src.api_client.dtos import OverallDesignDto
 from src.api_client.parsers import parse_overall_design
 from src.exceptions.api_client_exceptions import GatewayException
+
+logger = logging.getLogger(__name__)
 
 
 class AsyncNcbiGateway:
@@ -11,6 +15,7 @@ class AsyncNcbiGateway:
         self._api_key = api_key
 
     async def get_overall_design(self, gse_code: str) -> OverallDesignDto:
+        logger.debug("Fetching overall design for %s", gse_code)
         try:
             result = await self._connector.get_text(
                 self._NCBI_URL,
