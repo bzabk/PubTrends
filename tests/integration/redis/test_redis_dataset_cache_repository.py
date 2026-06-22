@@ -1,9 +1,5 @@
 import pytest
 
-from src.exceptions.api_client_exceptions import (
-    CacheSerializationError,
-)
-
 
 @pytest.mark.redis
 async def test_insert_get_roundtrip(cache_repository, sample_entries):
@@ -63,9 +59,9 @@ async def test_get_not_existing_key_returns_empty_list(cache_repository):
 
 
 @pytest.mark.redis
-async def test_get_raises_cache_serialization_error_for_invalid_cached_value(cache_repository, redis_client):
+async def test_get_skips_corrupted_cache_entry_and_returns_empty(cache_repository, redis_client):
     key = cache_repository._make_key("44444")
     await redis_client.set(key, "invalid_data")
 
-    with pytest.raises(CacheSerializationError):
-        await cache_repository.get(["44444"])
+    result = await cache_repository.get(["44444"])
+    assert result == []
