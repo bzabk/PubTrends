@@ -48,5 +48,3 @@ class ApiUnavailableException(PermanentException):
 
 class SessionNotInitializedError(PermanentException):
     pass
-
-

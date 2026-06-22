@@ -78,7 +78,7 @@ class FetchDataService:
         cache_hits = self._extract_hit_pmids(cached_records)
         missing_pmids = [pmid for pmid in pmids if pmid not in set(cache_hits)]
         logger.info("Cache: %d hits, %d misses", len(cache_hits), len(missing_pmids))
-        logger.info("Starting bakup retrieval for %d",len(missing_pmids))
+        logger.info("Starting bakup retrieval for %d", len(missing_pmids))
         logger.info("Missed pmids:")
         logger.info(missing_pmids)
         tasks = [self._fetch_single_pmid_semaphore(pmid) for pmid in missing_pmids]

@@ -3,8 +3,6 @@ import logging
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
 
-logger = logging.getLogger(__name__)
-
 import redis.asyncio as aioredis
 
 from src.api_client.api_availability_service import ApiAvailabilityService
@@ -18,6 +16,8 @@ from src.api_client.dtos import FetchDataframeResult
 from src.api_client.gateways.eutils_gateway import AsyncEutilsGateway
 from src.api_client.gateways.ncbi_gateway import AsyncNcbiGateway
 from src.exceptions.api_client_exceptions import MissingAPIKeyError
+
+logger = logging.getLogger(__name__)
 
 
 class ApiClientFacade:

@@ -65,8 +65,6 @@ def test_parse_overall_design_success(
     assert result == expected_overall_design_dto
 
 
-
-
 @pytest.mark.unit
 def test_parse_pmid_to_dbidx_raises_on_empty_response():
     with pytest.raises(ParserError):
@@ -104,7 +102,6 @@ def test_parse_pmid_to_dbidx_error_contains_pmid():
         parse_pmid_to_dbidx(response_result={}, pmid=pmid)
 
 
-
 @pytest.mark.unit
 def test_parse_dataset_summary_raises_on_empty_response():
     with pytest.raises(ParserError):
@@ -134,7 +131,6 @@ def test_parse_dataset_summary_error_contains_db_idx():
     db_idx = "200145669"
     with pytest.raises(ParserError, match=db_idx):
         parse_dataset_summary(response_result={}, db_idx=db_idx)
-
 
 
 @pytest.mark.unit

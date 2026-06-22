@@ -6,8 +6,6 @@ from typing import Any, Literal
 
 import aiohttp
 
-logger = logging.getLogger(__name__)
-
 from src.exceptions.api_client_exceptions import (
     ApiUnavailableException,
     HttpStatusException,
@@ -15,6 +13,8 @@ from src.exceptions.api_client_exceptions import (
     RequestException,
     SessionNotInitializedError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
@@ -94,7 +94,9 @@ class ConnectionManager:
                 if attempt == self.retry_attempts:
                     break
                 delay = self.delay_s * attempt
-                logger.warning("Request failed (attempt %d/%d), retrying in %.1fs: %s", attempt, self.retry_attempts, delay, exc)
+                logger.warning(
+                    "Request failed (attempt %d/%d), retrying in %.1fs: %s", attempt, self.retry_attempts, delay, exc
+                )
                 await asyncio.sleep(delay)
 
         logger.error("Request failed after %d attempts: %s", self.retry_attempts, url)
