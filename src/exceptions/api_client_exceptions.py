@@ -1,54 +1,50 @@
-class RequestException(Exception):
+class AppException(Exception):
     pass
 
 
-class GatewayException(Exception):
+class TransientException(AppException):
     pass
 
 
-class InfoSummaryException(Exception):
+class PermanentException(AppException):
     pass
 
 
-class OverallDesignException(Exception):
+class GatewayException(TransientException):
     pass
 
 
-class PmidException(Exception):
+class RequestException(TransientException):
     pass
 
 
-class ResponseStatusException(Exception):
+class RedisRequestException(TransientException):
     pass
 
 
-class ParserError(Exception):
+class HttpStatusException(TransientException):
     pass
 
 
-class HttpStatusException(Exception):
+class ParserError(PermanentException):
     pass
 
 
-class SessionNotInitializedError(Exception):
+class CacheSerializationError(PermanentException):
     pass
 
 
-class RedisRequestException(Exception):
+class InvalidApiKeyException(PermanentException):
     pass
 
 
-class CacheSerializationError(Exception):
+class MissingAPIKeyError(PermanentException):
     pass
 
 
-class MissingAPIKeyError(Exception):
+class ApiUnavailableException(PermanentException):
     pass
 
 
-class ApiUnavailableException(Exception):
-    pass
-
-
-class InvalidApiKeyException(Exception):
+class SessionNotInitializedError(PermanentException):
     pass

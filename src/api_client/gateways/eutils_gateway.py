@@ -1,6 +1,10 @@
+import logging
+
 from src.api_client.dtos import DatasetLinkDto, DatasetSummaryDto
 from src.api_client.parsers import parse_dataset_summary, parse_pmid_to_dbidx
 from src.exceptions.api_client_exceptions import GatewayException
+
+logger = logging.getLogger(__name__)
 
 
 class AsyncEutilsGateway:
@@ -12,6 +16,7 @@ class AsyncEutilsGateway:
         self._api_key = api_key
 
     async def get_dataset_idx(self, pmid: str) -> DatasetLinkDto:
+        logger.debug("Fetching GEO dataset IDs for PMID %s", pmid)
         try:
             result = await self._connector.get_json(
                 self._ELINK_URL,
@@ -29,6 +34,7 @@ class AsyncEutilsGateway:
         return parse_pmid_to_dbidx(result, pmid)
 
     async def get_dataset_summary(self, db_idx: str) -> DatasetSummaryDto:
+        logger.debug("Fetching dataset summary for db_idx %s", db_idx)
         try:
             result = await self._connector.get_json(
                 self._ESUMMARY_URL,

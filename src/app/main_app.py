@@ -11,7 +11,6 @@ from src.exceptions.api_client_exceptions import (
     ApiUnavailableException,
     InvalidApiKeyException,
     MissingAPIKeyError,
-    ResponseStatusException,
 )
 from src.exceptions.front_model_exceptions import (
     EmptyDataFrameException,
@@ -86,7 +85,7 @@ class MainApp:
                 self._load_dataset(load_default_dataset=True)
         except (PmidTxtFileIsNoneException, NotEnoughPmidsInTxtFileException) as exc:
             self.message_service.error(str(exc))
-        except (MissingAPIKeyError, ResponseStatusException, EmptyDataFrameException) as exc:
+        except (MissingAPIKeyError, EmptyDataFrameException) as exc:
             self.message_service.error(str(exc))
         except Exception as exc:
             self.message_service.error(f"Unexpected error: {exc}")
@@ -111,5 +110,11 @@ class MainApp:
             st.session_state["pmid_df"] = pd.read_csv("src/api_client/redis_data/toy_dataset.csv")
             self.preprocessing_service.process_dataframe_from_session_cache()
         else:
-            st.session_state["pmid_df"] = self.apiclient.fetch_dataframe(st.session_state["pmid_list"]).dataframe
+            result = self.apiclient.fetch_dataframe(st.session_state["pmid_list"])
+            if result.dataframe is None or result.dataframe.empty:
+                raise EmptyDataFrameException(
+                    "No GEO datasets found for the provided PMIDs. "
+                    f"Failed: {len(result.failed_pmids)}, no data: {len(result.no_data_pmids)}."
+                )
+            st.session_state["pmid_df"] = result.dataframe
             self.preprocessing_service.process_dataframe_from_session_cache()
