@@ -16,7 +16,6 @@ from src.exceptions.api_client_exceptions import (
 
 logger = logging.getLogger(__name__)
 
-
 class ConnectionManager:
     def __init__(
         self,
@@ -44,10 +43,10 @@ class ConnectionManager:
             await self._session.close()
             self._session = None
 
-    async def get_json(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def get_json(self, url: str, params) -> dict[str, Any]:
         return await self._send_request("GET", url, params=params, response_type="json")
 
-    async def get_text(self, url: str, params: dict[str, Any] | None = None) -> str:
+    async def get_text(self, url: str, params) -> str:
         return await self._send_request("GET", url, params=params, response_type="text")
 
     async def _send_request(
@@ -55,7 +54,7 @@ class ConnectionManager:
         method: str,
         url: str,
         response_type: Literal["json", "text"],
-        params: dict[str, Any] | None = None,
+        params,
     ) -> dict[str, Any] | str:
         if self._session is None:
             raise SessionNotInitializedError("Session was not initialized")

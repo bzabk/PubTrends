@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from xml.parsers.expat import ExpatError
 
@@ -7,35 +8,69 @@ from src.api_client.dtos import DatasetLinkDto, DatasetSummaryDto, OverallDesign
 from src.exceptions.api_client_exceptions import ParserError
 
 
-def parse_pmid_to_dbidx(response_result: dict[str, Any], pmid: str) -> DatasetLinkDto:
+logger = logging.getLogger(__name__)
+
+def parse_pmids_to_dbidx(response_result: dict[str, Any], pmids: list[str]) -> list[DatasetLinkDto]:
     try:
-        db_ids = response_result["linksets"][0]["linksetdbs"][0]["links"]
-    except (KeyError, IndexError, TypeError) as e:
-        raise ParserError(f"Failed to parse dbidx for {pmid}") from e
-    return DatasetLinkDto(pmid=pmid, db_ids=db_ids)
+        linksets = response_result["linksets"]
+    except Exception as e:
+        raise ParserError("Failed to parse elink batch response") from e
+
+    db_ids_by_pmid: dict[str, list[str]] = {}
+    for linkset in linksets:
+        ids = linkset.get("ids") or []
+        if not ids:
+            continue
+        source_pmid = ids[0]
+        links: list[str] = []
+        for linksetdb in linkset.get("linksetdbs", []):
+            if linksetdb.get("linkname") == "pubmed_gds":
+                links = linksetdb.get("links", [])
+                break
+        db_ids_by_pmid[source_pmid] = links
+
+    return [DatasetLinkDto(pmid=pmid, db_idx=db_ids_by_pmid.get(pmid, [])) for pmid in pmids]
 
 
-def parse_dataset_summary(response_result: dict[str, Any], db_idx: str) -> DatasetSummaryDto:
+def parse_dataset_summaries(response_result: dict[str, Any], db_ids: list[str]) -> list[DatasetSummaryDto]:
     try:
-        item = response_result["result"][db_idx]
-        return DatasetSummaryDto(
-            db_idx=db_idx,
-            title=item["title"],
-            summary=item["summary"],
-            organism=item["taxon"],
-            experiment_type=item["gdstype"],
-            gse_code=item["accession"],
-        )
-    except (KeyError, TypeError) as e:
-        raise ParserError(f"Failed to parse dataset summary for {db_idx}") from e
+        result = response_result["result"]
+    except Exception as e:
+        raise ParserError("Failed to parse esummary batch response") from e
+
+    summaries: list[DatasetSummaryDto] = []
+    for db_idx in db_ids:
+        item = result.get(db_idx)
+        if not isinstance(item, dict):
+            continue
+        try:
+            summaries.append(
+                DatasetSummaryDto(
+                    db_idx=db_idx,
+                    title=item["title"],
+                    summary=item["summary"],
+                    organism=item["taxon"],
+                    experiment_type=item["gdstype"],
+                    gse_code=item["accession"],
+                )
+            )
+        except KeyError:
+            continue
+    return summaries
 
 
 def parse_overall_design(xml_text: str, gse_code: str) -> OverallDesignDto:
     try:
         data = xmltodict.parse(xml_text)
-        overall_design = data["MINiML"]["Series"].get("Overall-Design")
-    except (KeyError, TypeError, AttributeError, ExpatError) as e:
-        raise ParserError(f"Failed to parse XML response for {gse_code}") from e
+        overall_design = (
+            data.get("MINiML", {})
+            .get("Series", {})
+            .get("Overall-Design", "")
+        )
+    except Exception as e:
+        logger.warning(f"XML Parsing failed for {gse_code}: {e}")
+        overall_design = ""
+
     return OverallDesignDto(
         gse_code=gse_code,
         overall_design=overall_design,

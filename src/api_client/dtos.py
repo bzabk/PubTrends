@@ -27,7 +27,7 @@ class CachedPmidRecords:
 @dataclass
 class DatasetLinkDto:
     pmid: str
-    db_ids: list[str]
+    db_idx: list[str]
 
 
 @dataclass
