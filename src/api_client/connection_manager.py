@@ -23,7 +23,7 @@ class ConnectionManager:
         timeout_s: float = 15.0,
         connector_limit: int = 20,
         retry_attempts: int = 3,
-        delay_s: float = 1.0,
+        delay_s: float = 0.05,
     ):
         self._timeout_s = timeout_s
         self._connector_limit = connector_limit
@@ -67,6 +67,8 @@ class ConnectionManager:
                     await self._async_limiter.acquire()
 
                 async with self._session.request(method, url, params=params) as response:
+                    logger.info("Request sent:")
+                    logger.info(response.url)
                     if response.status >= 400:
                         error_text = await response.text()
                         error_data = {}

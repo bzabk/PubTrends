@@ -79,8 +79,11 @@ class MainApp:
             if sidebar_state.save_api_key_clicked:
                 self._save_api_key(sidebar_state.api_key)
             if sidebar_state.load_pmids_clicked:
-                self.preprocessing_service.validate_chosen_file(sidebar_state.uploaded_file)
-                self._load_dataset(load_default_dataset=False)
+                if not st.session_state.get("api_key"):
+                    self.message_service.error("Please save your API key before loading data")
+                else:
+                    self.preprocessing_service.validate_chosen_file(sidebar_state.uploaded_file)
+                    self._load_dataset(load_default_dataset=False)
             if sidebar_state.load_toy_clicked:
                 self._load_dataset(load_default_dataset=True)
         except (PmidTxtFileIsNoneException, NotEnoughPmidsInTxtFileException) as exc:

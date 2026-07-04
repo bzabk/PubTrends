@@ -10,11 +10,13 @@ from src.exceptions.api_client_exceptions import ParserError
 
 logger = logging.getLogger(__name__)
 
-def parse_pmids_to_dbidx(response_result: dict[str, Any], pmids: list[str]) -> list[DatasetLinkDto]:
+
+def parse_pmids_to_dbidx(response_result: dict[str, Any], pmids: list[str]) -> list[DatasetLinkDto] | None:
     try:
         linksets = response_result["linksets"]
-    except Exception as e:
-        raise ParserError("Failed to parse elink batch response") from e
+    except Exception:
+        logger.warning(f"Failed to parse response for pmids: {pmids}")
+        return None
 
     db_ids_by_pmid: dict[str, list[str]] = {}
     for linkset in linksets:
@@ -69,7 +71,7 @@ def parse_overall_design(xml_text: str, gse_code: str) -> OverallDesignDto:
         )
     except Exception as e:
         logger.warning(f"XML Parsing failed for {gse_code}: {e}")
-        overall_design = ""
+        overall_design = None
 
     return OverallDesignDto(
         gse_code=gse_code,

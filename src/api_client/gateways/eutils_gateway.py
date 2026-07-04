@@ -2,7 +2,7 @@ import asyncio
 
 import logging
 
-from src.api_client.dtos import DatasetLinkDto, DatasetSummaryDto
+from src.api_client.dtos import DatasetLinkDto, DatasetSummaryDto, MissingFetchResult
 from src.api_client.parsers import parse_dataset_summaries, parse_pmids_to_dbidx
 from src.exceptions.api_client_exceptions import GatewayException, MissingAPIKeyError
 
@@ -18,7 +18,7 @@ class AsyncEutilsGateway:
         self._connector = connector
         self._api_key = api_key
 
-    async def get_dataset_idxs(self, pmids: list[str]) -> list[DatasetLinkDto]:
+    async def get_dataset_idxs(self, pmids: list[str]) -> MissingFetchResult:
         if not self._api_key:
             raise MissingAPIKeyError()
         params = [
@@ -32,9 +32,18 @@ class AsyncEutilsGateway:
 
         try:
             result = await self._connector.get_json(self._ELINK_URL, params=params)
-        except Exception as e:
-            raise GatewayException(f"Failed to fetch dataset idx for {len(pmids)} pmids") from e
-        return parse_pmids_to_dbidx(result, pmids)
+        except Exception:
+            logger.warning(f"Failed to fetch from {self._ELINK_URL} for {pmids}")
+            return MissingFetchResult(dataset_links=[], failed_pmids=pmids, no_data_pmids=[])
+
+        links = parse_pmids_to_dbidx(result, pmids)
+        if links is None:
+            logger.warning(f"Failed to parse response for pmids: {pmids}")
+            return MissingFetchResult(dataset_links=[], failed_pmids=pmids, no_data_pmids=[])
+
+        dataset_links = [l for l in links if l.db_idx]
+        no_data = [l.pmid for l in links if not l.db_idx]
+        return MissingFetchResult(dataset_links=dataset_links, failed_pmids=[], no_data_pmids=no_data)
 
     async def get_dataset_summaries(self, db_ids: list[str]) -> list[DatasetSummaryDto]:
         if not db_ids:
