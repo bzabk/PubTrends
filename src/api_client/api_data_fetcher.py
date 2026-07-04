@@ -30,7 +30,7 @@ class FetchDataService:
         ncbi_gateway: AsyncNcbiGateway,
         cache_repository: DatasetCacheRepository,
         concurrency_limit: int = 5,
-        bulk_size: int = 2
+        bulk_size: int = 2,
     ):
         self.eutils_gateway = eutils_gateway
         self.ncbi_gateway = ncbi_gateway
@@ -80,15 +80,12 @@ class FetchDataService:
             no_data_pmids=missing_result.no_data_pmids,
         )
 
-
     async def _fetch_missing(self, missing_pmids: list[str]) -> FetchDataframeResult:
         if not missing_pmids:
             return FetchDataframeResult(dataframe=pd.DataFrame(), failed_pmids=[], no_data_pmids=[])
-        batches = [missing_pmids[i:i + self.bulk_size] for i in range(0, len(missing_pmids), self.bulk_size)]
+        batches = [missing_pmids[i : i + self.bulk_size] for i in range(0, len(missing_pmids), self.bulk_size)]
 
-        results = await asyncio.gather(
-            *(self.eutils_gateway.get_dataset_idxs(batch) for batch in batches)
-        )
+        results = await asyncio.gather(*(self.eutils_gateway.get_dataset_idxs(batch) for batch in batches))
 
         dataset_links = list(itertools.chain.from_iterable(r.dataset_links for r in results))
         failed_pmids = list(itertools.chain.from_iterable(r.failed_pmids for r in results))
@@ -120,22 +117,25 @@ class FetchDataService:
 
         dropped_overall_design = df_combined[df_combined["overall_design"].isna()]["pmid"].unique().tolist()
         if dropped_overall_design:
-            logger.warning(f"Dropping {len(dropped_overall_design)} pmids due to failed overall_design: {dropped_overall_design}")
+            logger.warning(
+                f"Dropping {len(dropped_overall_design)} pmids due to failed overall_design: {dropped_overall_design}"
+            )
         df_combined = df_combined.dropna(subset=["overall_design"])
 
-        df_combined = df_combined.rename(columns={
-            "pmid": "Pmid",
-            "title": "Title",
-            "summary": "Summary",
-            "organism": "Organism",
-            "experiment_type": "Experiment_type",
-            "gse_code": "GSE_code",
-            "overall_design": "Overall_design",
-        })
+        df_combined = df_combined.rename(
+            columns={
+                "pmid": "Pmid",
+                "title": "Title",
+                "summary": "Summary",
+                "organism": "Organism",
+                "experiment_type": "Experiment_type",
+                "gse_code": "GSE_code",
+                "overall_design": "Overall_design",
+            }
+        )
 
         logger.info(f"DataFrame shape: {df_combined.shape}")
         return FetchDataframeResult(dataframe=df_combined, failed_pmids=failed_pmids, no_data_pmids=no_data_pmids)
-
 
     async def _save_to_cache(self, dataframe: pd.DataFrame) -> None:
         if dataframe.empty:
@@ -158,7 +158,7 @@ class FetchDataService:
         df = df.explode("db_idx").reset_index(drop=True)
         return df
 
-    def _dataclass2dataframe(self,dataset_summeries) -> pd.DataFrame:
+    def _dataclass2dataframe(self, dataset_summeries) -> pd.DataFrame:
         return pd.DataFrame([asdict(summary) for summary in dataset_summeries])
 
     @staticmethod

@@ -1,12 +1,10 @@
 import logging
 from typing import Any
-from xml.parsers.expat import ExpatError
 
 import xmltodict
 
 from src.api_client.dtos import DatasetLinkDto, DatasetSummaryDto, OverallDesignDto
 from src.exceptions.api_client_exceptions import ParserError
-
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +62,7 @@ def parse_dataset_summaries(response_result: dict[str, Any], db_ids: list[str]) 
 def parse_overall_design(xml_text: str, gse_code: str) -> OverallDesignDto:
     try:
         data = xmltodict.parse(xml_text)
-        overall_design = (
-            data.get("MINiML", {})
-            .get("Series", {})
-            .get("Overall-Design", "")
-        )
+        overall_design = data.get("MINiML", {}).get("Series", {}).get("Overall-Design", "")
     except Exception as e:
         logger.warning(f"XML Parsing failed for {gse_code}: {e}")
         overall_design = None

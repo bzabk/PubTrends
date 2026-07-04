@@ -51,6 +51,7 @@ class OverallDesignDto:
     gse_code: str
     overall_design: str | None
 
+
 @dataclass
 class FetchDataframeResult:
     dataframe: pd.DataFrame

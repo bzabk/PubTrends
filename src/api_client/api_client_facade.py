@@ -2,8 +2,9 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
-from time import time
+
 import redis.asyncio as aioredis
+
 from api_client.rate_limit_strategies import SlidingWindowStrategy
 from src.api_client.api_availability_service import ApiAvailabilityService
 from src.api_client.api_data_fetcher import FetchDataService
@@ -59,6 +60,7 @@ class ApiClientFacade:
             await redis_client.aclose()
 
     async def _check_api_availability_async(self, api_key: str) -> list[Exception]:
-        async with ConnectionManager(async_limiter=AsyncLimiter(strategy=SlidingWindowStrategy())) as connection_manager:
+        async with ConnectionManager(
+            async_limiter=AsyncLimiter(strategy=SlidingWindowStrategy())
+        ) as connection_manager:
             return await ApiAvailabilityService(connector=connection_manager).check(api_key)
-

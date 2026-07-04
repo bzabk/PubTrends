@@ -16,6 +16,7 @@ from src.exceptions.api_client_exceptions import (
 
 logger = logging.getLogger(__name__)
 
+
 class ConnectionManager:
     def __init__(
         self,

@@ -1,8 +1,7 @@
 import asyncio
-
 import logging
 
-from src.api_client.dtos import DatasetLinkDto, DatasetSummaryDto, MissingFetchResult
+from src.api_client.dtos import DatasetSummaryDto, MissingFetchResult
 from src.api_client.parsers import parse_dataset_summaries, parse_pmids_to_dbidx
 from src.exceptions.api_client_exceptions import GatewayException, MissingAPIKeyError
 
@@ -26,7 +25,7 @@ class AsyncEutilsGateway:
             ("db", "gds"),
             ("linkname", "pubmed_gds"),
             ("retmode", "json"),
-            ("api_key", self._api_key)
+            ("api_key", self._api_key),
         ]
         params += [("id", pmid) for pmid in pmids]
 
@@ -41,16 +40,14 @@ class AsyncEutilsGateway:
             logger.warning(f"Failed to parse response for pmids: {pmids}")
             return MissingFetchResult(dataset_links=[], failed_pmids=pmids, no_data_pmids=[])
 
-        dataset_links = [l for l in links if l.db_idx]
-        no_data = [l.pmid for l in links if not l.db_idx]
+        dataset_links = [link for link in links if link.db_idx]
+        no_data = [link.pmid for link in links if not link.db_idx]
         return MissingFetchResult(dataset_links=dataset_links, failed_pmids=[], no_data_pmids=no_data)
 
     async def get_dataset_summaries(self, db_ids: list[str]) -> list[DatasetSummaryDto]:
         if not db_ids:
             return []
-        chunks = [
-            db_ids[i : i + self._ESUMMARY_BATCH_SIZE] for i in range(0, len(db_ids), self._ESUMMARY_BATCH_SIZE)
-        ]
+        chunks = [db_ids[i : i + self._ESUMMARY_BATCH_SIZE] for i in range(0, len(db_ids), self._ESUMMARY_BATCH_SIZE)]
         chunk_results = await asyncio.gather(*(self._fetch_summary_chunk(chunk) for chunk in chunks))
 
         return [summary for chunk_result in chunk_results for summary in chunk_result]
@@ -58,12 +55,7 @@ class AsyncEutilsGateway:
     async def _fetch_summary_chunk(self, db_ids: list[str]) -> list[DatasetSummaryDto]:
         if not self._api_key:
             raise MissingAPIKeyError()
-        params = [
-            ("db", "gds"),
-            ("id", ",".join(db_ids)),
-            ("retmode", "json"),
-            ("api_key", self._api_key)
-        ]
+        params = [("db", "gds"), ("id", ",".join(db_ids)), ("retmode", "json"), ("api_key", self._api_key)]
         try:
             result = await self._connector.get_json(self._ESUMMARY_URL, params=params)
         except Exception as e:
