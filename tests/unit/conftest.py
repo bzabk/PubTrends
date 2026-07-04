@@ -72,7 +72,7 @@ def overall_design_xml() -> str:
 def expected_single_link_dto(single_link_pmid: str) -> DatasetLinkDto:
     return DatasetLinkDto(
         pmid=single_link_pmid,
-        db_ids=["200146264"],
+        db_idx=["200146264"],
     )
 
 
@@ -80,7 +80,7 @@ def expected_single_link_dto(single_link_pmid: str) -> DatasetLinkDto:
 def expected_multi_link_dto(multi_link_pmid: str) -> DatasetLinkDto:
     return DatasetLinkDto(
         pmid=multi_link_pmid,
-        db_ids=[
+        db_idx=[
             "200165870",
             "200145669",
             "200145668",

@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import redis.asyncio as aioredis
 
+from api_client.rate_limit_strategies import SlidingWindowStrategy
 from src.api_client.api_availability_service import ApiAvailabilityService
 from src.api_client.api_data_fetcher import FetchDataService
 from src.api_client.async_limiter import AsyncLimiter
@@ -32,7 +33,7 @@ class ApiClientFacade:
 
     def fetch_dataframe(self, pmids: list[str]) -> FetchDataframeResult:
         if self._api_key is None:
-            raise MissingAPIKeyError
+            raise MissingAPIKeyError()
         return self._run_async(lambda: self._fetch_dataframe_async(pmids))
 
     def check_api_availability(self, api_key: str) -> list[Exception]:
@@ -42,15 +43,13 @@ class ApiClientFacade:
         return self._executor.submit(lambda: asyncio.run(coroutine_factory())).result()
 
     async def _fetch_dataframe_async(self, pmids: list[str]) -> FetchDataframeResult:
-        logger.info("ApiClientFacade: starting pipeline for %d PMIDs", len(pmids))
         redis_client = aioredis.from_url(self._redis_url)
         cache_repo = RedisDatasetCacheRepository(redis_client=redis_client)
-
         try:
+            await cache_repo.log_cache_status()
             async with ConnectionManager(async_limiter=AsyncLimiter()) as conn:
                 eutils_gateway = AsyncEutilsGateway(connector=conn, api_key=self._api_key)
                 ncbi_gateway = AsyncNcbiGateway(connector=conn, api_key=self._api_key)
-
                 fetch_data_service = FetchDataService(
                     eutils_gateway=eutils_gateway,
                     ncbi_gateway=ncbi_gateway,
@@ -58,8 +57,10 @@ class ApiClientFacade:
                 )
                 return await fetch_data_service.fetch_dataframe(pmids)
         finally:
-            await redis_client.close()
+            await redis_client.aclose()
 
     async def _check_api_availability_async(self, api_key: str) -> list[Exception]:
-        async with ConnectionManager(async_limiter=AsyncLimiter()) as connection_manager:
+        async with ConnectionManager(
+            async_limiter=AsyncLimiter(strategy=SlidingWindowStrategy())
+        ) as connection_manager:
             return await ApiAvailabilityService(connector=connection_manager).check(api_key)

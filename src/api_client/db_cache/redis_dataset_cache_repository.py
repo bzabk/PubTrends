@@ -48,6 +48,13 @@ class RedisDatasetCacheRepository(DatasetCacheRepository):
             raise RedisRequestException("Redis insert operation failed") from e
         logger.debug("Cache insert: %d entries written", len(key_value_pairs))
 
+    async def log_cache_status(self) -> None:
+        try:
+            key_count = await self._client.dbsize()
+            logger.info(f"Redis cache status: {key_count} pmid keys loaded")
+        except RedisError as e:
+            logger.warning(f"Could not retrieve Redis cache status: {e}")
+
     async def get(self, pmids: Sequence[str]) -> list[CachedDatasetRecord]:
         if not pmids:
             return []
