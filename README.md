@@ -95,6 +95,9 @@ However, it's important to note that such API downtimes are possible.
   <em>Highlighted data points represent GSE datasets related to the same PMID.</em>
 </p>
 
+## Caching
+All successfully fetched data are cached in Redis, so repeated queries for the same PMIDs skip the API entirely. 
+
 ## Performance Optimization
 
 During the development of my web API, two different approaches towards retrieving the data from the API were applied. The synchronous approach led to a duration of approximately 3 min for retrieving 
