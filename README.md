@@ -1,11 +1,12 @@
 # PubTrends: Data Insights for Enhanced Paper Relevance
-![Python Version](https://img.shields.io/badge/Python-3.10-blue.svg)
+![Python Version](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.44.1-red?logo=streamlit)
-![Plotly](https://img.shields.io/badge/Plotly-6.0.1-blue?logo=plotly)
-![scikit--learn](https://img.shields.io/badge/scikit--learn-1.6.1-orange?logo=scikit-learn)
-![xmltodict](https://img.shields.io/badge/xmltodict-0.14.2-lightgrey)
-![Matplotlib](https://img.shields.io/badge/Matplotlib-3.10.1-darkgreen)
+![Streamlit](https://img.shields.io/badge/Streamlit-red?logo=streamlit)
+![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
+![Plotly](https://img.shields.io/badge/Plotly-blue?logo=plotly)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-orange?logo=scikit-learn)
+![uv](https://img.shields.io/badge/uv-package%20manager-purple)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 
 > **Note:** This project was developed as a submission for the **JetBrains Internship Summer 2025**.
 
@@ -26,6 +27,8 @@ The app accepts a `.txt` file as input, containing a list of **PMIDs** of intere
 21057496
 ...
 ```
+An NCBI API key is required. It can be obtained in settings section after logging in at https://account.ncbi.nlm.nih.gov/settings/
+It is because adding api key to the url increases rate limiter from 3 req/s to 10 res/s
 ## Data Retrieval Endpoints
 
 The application uses NCBI's **e-utils API** and GEO data sources:
