@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import re
 from typing import Any, Literal
 
 import aiohttp
@@ -69,7 +70,8 @@ class ConnectionManager:
 
                 async with self._session.request(method, url, params=params) as response:
                     logger.info("Request sent:")
-                    logger.info(response.url)
+                    safe_url = re.sub(r'[?&]api_key=[^&]*', '', str(response.url))
+                    logger.info(safe_url)
                     if response.status >= 400:
                         error_text = await response.text()
                         error_data = {}
