@@ -5,7 +5,7 @@
 ![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
 ![Plotly](https://img.shields.io/badge/Plotly-blue?logo=plotly)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-orange?logo=scikit-learn)
-![uv](https://img.shields.io/badge/uv-package%20manager-purple)
+![asyncio](https://img.shields.io/badge/asyncio-3776AB?logo=python&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 
 > **Note:** This project was developed as a submission for the **JetBrains Internship Summer 2025**.
