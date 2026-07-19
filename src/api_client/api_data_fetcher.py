@@ -29,12 +29,12 @@ class FetchDataService:
         eutils_gateway: AsyncEutilsGateway,
         ncbi_gateway: AsyncNcbiGateway,
         cache_repository: DatasetCacheRepository,
-        bulk_size: int = 2,
+        pmid_bulk_size: int = 2,
     ):
         self.eutils_gateway = eutils_gateway
         self.ncbi_gateway = ncbi_gateway
         self.cache_repository = cache_repository
-        self.bulk_size = bulk_size
+        self.pmid_bulk_size = pmid_bulk_size
 
     async def fetch_dataframe(self, pmids: list[str]) -> FetchDataframeResult:
         logger.info(f"Started fetching data for {len(pmids)} pmids")
@@ -83,7 +83,7 @@ class FetchDataService:
     async def _fetch_missing(self, missing_pmids: list[str]) -> FetchDataframeResult:
         if not missing_pmids:
             return FetchDataframeResult(dataframe=pd.DataFrame(), failed_pmids=[], no_data_pmids=[])
-        batches = [missing_pmids[i : i + self.bulk_size] for i in range(0, len(missing_pmids), self.bulk_size)]
+        batches = [missing_pmids[i : i + self.pmid_bulk_size] for i in range(0, len(missing_pmids), self.pmid_bulk_size)]
 
         results = await asyncio.gather(*(self.eutils_gateway.get_dataset_idxs(batch) for batch in batches))
 

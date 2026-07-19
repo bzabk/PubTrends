@@ -100,10 +100,28 @@ All successfully fetched data are cached in Redis, so repeated queries for the s
 
 ## Performance Optimization
 
-During the development of my web API, two different approaches towards retrieving the data from the API were applied. The synchronous approach led to a duration of approximately 3 min for retrieving 
-100 PMIDs. Asynchronous approaches using the asyncio built-in package reduced the duration to 40 seconds for the same number of PMIDs.
+Fetching data involves three chained API calls per dataset (elink → esummary → overall design XML), so the time needed to
+retrieve all data for a list of PMIDs is shaped by several parameters:
 
-Change of the strategy led to a 4.5 times improvement
+- **PMID bulk size** — how many PMIDs are batched into a single `elink` request.
+- **esummary batch size** — how many dataset IDs are batched into a single `esummary` request.
+- **Retry attempts** — how many times a failed request is retried before the PMID is marked as failed.
+- **Rate-limiting strategy** — fixed delay vs. sliding window pacing between outgoing requests.
+- **Connection parameters** — per-request timeout and the connector's concurrent-connection limit.
+- **Semaphore size** — the maximum number of requests allowed to be in flight at the same time.
+
+The synchronous approach (issuing requests one at a time in a loop) took approximately **311 seconds** to retrieve data
+for 88 PMIDs (one of which intentionally triggers an error, to check that failures are handled correctly).
+
+The asynchronous approach — built on `asyncio`, a fixed-delay rate-limiting strategy, and a semaphore bounding
+concurrent requests — reduced this to approximately **45.09 ± 5.95 seconds** (mean ± standard deviation over 10 runs),
+roughly a **6.9x speedup**.
+
+The original plan was to build a benchmark with a grid search over these parameters to find the fastest configuration
+for fetching 88 PMIDs. However, factors outside our control — internet connection stability and NCBI server response
+times — mean that timing results can vary a lot between runs regardless of the parameters used: across 10 runs with
+*no* change in parameters, the timings still varied by about ~13 seconds. This makes it unreliable to draw
+conclusions about the best parameters.
 
 
 
