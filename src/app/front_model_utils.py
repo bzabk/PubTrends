@@ -3,7 +3,7 @@ import streamlit as st
 from src.exceptions.front_model_exceptions import NotEnoughPmidsInTxtFileException, PmidTxtFileIsNoneException
 
 
-def validate_chosen_file(uploaded_file, min_len_pmid_list) -> list[str] | None:
+def validate_chosen_file(uploaded_file, min_len_pmid_list=10) -> list[str] | None:
     """
     Function checks whether the uploaded file is in the correct format and extracts PMIDs from it.
     In case user uploaded less than 10 correct PMIDs, an error message is displayed.

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
 
@@ -55,7 +56,10 @@ class ApiClientFacade:
                     ncbi_gateway=ncbi_gateway,
                     cache_repository=cache_repo,
                 )
-                return await fetch_data_service.fetch_dataframe(pmids)
+                start = time.perf_counter()
+                result = await fetch_data_service.fetch_dataframe(pmids)
+                logger.info(f"fetch_dataframe took {time.perf_counter() - start:.2f}s")
+                return result
         finally:
             await redis_client.aclose()
 

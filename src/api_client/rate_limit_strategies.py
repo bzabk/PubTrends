@@ -27,11 +27,11 @@ class FixedDelayStrategy(RateLimiterStrategy):
 
 
 class SlidingWindowStrategy(RateLimiterStrategy):
-    def __init__(self, max_requests: int = 10, window: float = 1.0):
+    def __init__(self, max_requests: int = 10, release_time: float = 1.0):
         self._lock = asyncio.Lock()
         self._api_calls_timestamps = deque()
         self._max_deque_size = max_requests
-        self._release_time = window
+        self._release_time = release_time
 
     async def acquire(self):
         while True:

@@ -29,15 +29,12 @@ class FetchDataService:
         eutils_gateway: AsyncEutilsGateway,
         ncbi_gateway: AsyncNcbiGateway,
         cache_repository: DatasetCacheRepository,
-        concurrency_limit: int = 5,
         bulk_size: int = 2,
     ):
         self.eutils_gateway = eutils_gateway
         self.ncbi_gateway = ncbi_gateway
         self.cache_repository = cache_repository
-        self.concurrency_limit = concurrency_limit
         self.bulk_size = bulk_size
-        self.semaphore = asyncio.Semaphore(concurrency_limit)
 
     async def fetch_dataframe(self, pmids: list[str]) -> FetchDataframeResult:
         logger.info(f"Started fetching data for {len(pmids)} pmids")
@@ -67,7 +64,10 @@ class FetchDataService:
         missing_pmids = [pmid for pmid in pmids if pmid not in set(cache_hits)]
 
         logger.info(f"Cache: {len(cache_hits)} hits, {len(missing_pmids)} missed")
-        logger.info("Started retrieval for missed pmids")
+
+        if len(missing_pmids)!=0:
+
+            logger.info("Started retrieval for missed pmids")
 
         missing_result = await self._fetch_missing(missing_pmids)
         await self._save_to_cache(missing_result.dataframe)
@@ -96,11 +96,21 @@ class FetchDataService:
 
         unique_indices = list({idx for link in dataset_links for idx in link.db_idx})
 
-        dataset_summeries = await self.eutils_gateway.get_dataset_summaries(unique_indices)
+        summary_result = await self.eutils_gateway.get_dataset_summaries(unique_indices)
+        dataset_summeries = summary_result.summaries
         gse_code_list_unique = list({s.gse_code for s in dataset_summeries})
         overall_data = await asyncio.gather(
             *(self.ncbi_gateway.get_overall_design(gse_code) for gse_code in gse_code_list_unique)
         )
+
+        failed_db_idx = set(summary_result.failed_db_idx)
+        summary_failed_pmids = list({link.pmid for link in dataset_links if failed_db_idx & set(link.db_idx)})
+        if summary_failed_pmids:
+            logger.warning(
+                f"Failed to fetch {len(summary_failed_pmids)} pmids due to failed esummary: {summary_failed_pmids}"
+            )
+            failed_pmids = failed_pmids + summary_failed_pmids
+            dataset_links = [link for link in dataset_links if link.pmid not in set(summary_failed_pmids)]
 
         df_links = self._dataset_links2dataframe(dataset_links)
         df_summaries = self._dataclass2dataframe(dataset_summeries)
@@ -110,17 +120,22 @@ class FetchDataService:
 
         dropped_esummary = df_combined[df_combined["title"].isna()]["pmid"].unique().tolist()
         if dropped_esummary:
-            logger.warning(f"Dropping {len(dropped_esummary)} pmids due to failed esummary: {dropped_esummary}")
-        df_combined = df_combined.dropna(subset=["title"])
+            logger.warning(
+                f"Marking {len(dropped_esummary)} pmids as failed due to missing esummary data: {dropped_esummary}"
+            )
+            failed_pmids = failed_pmids + dropped_esummary
+            df_combined = df_combined[~df_combined["pmid"].isin(dropped_esummary)]
 
         df_combined = df_combined.merge(df_overall_design, on="gse_code", how="left")
 
         dropped_overall_design = df_combined[df_combined["overall_design"].isna()]["pmid"].unique().tolist()
         if dropped_overall_design:
             logger.warning(
-                f"Dropping {len(dropped_overall_design)} pmids due to failed overall_design: {dropped_overall_design}"
+                f"Marking {len(dropped_overall_design)} pmids as failed due to missing overall_design data: "
+                f"{dropped_overall_design}"
             )
-        df_combined = df_combined.dropna(subset=["overall_design"])
+            failed_pmids = failed_pmids + dropped_overall_design
+            df_combined = df_combined[~df_combined["pmid"].isin(dropped_overall_design)]
 
         df_combined = df_combined.rename(
             columns={

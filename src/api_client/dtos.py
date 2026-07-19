@@ -47,6 +47,12 @@ class DatasetSummaryDto:
 
 
 @dataclass
+class SummaryChunkResult:
+    summaries: list[DatasetSummaryDto]
+    failed_db_idx: list[str]
+
+
+@dataclass
 class OverallDesignDto:
     gse_code: str
     overall_design: str | None

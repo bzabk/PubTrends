@@ -6,6 +6,7 @@ import re
 from typing import Any, Literal
 
 import aiohttp
+from yarl import URL
 
 from src.exceptions.api_client_exceptions import (
     ApiUnavailableException,
@@ -24,6 +25,7 @@ class ConnectionManager:
         async_limiter,
         timeout_s: float = 15.0,
         connector_limit: int = 20,
+        semaphore_size: int = 20,
         retry_attempts: int = 3,
         delay_s: float = 0.05,
     ):
@@ -32,6 +34,7 @@ class ConnectionManager:
         self.retry_attempts = retry_attempts
         self.delay_s = delay_s
         self._async_limiter = async_limiter
+        self._semaphore = asyncio.Semaphore(semaphore_size)
         self._session = None
 
     async def __aenter__(self):
@@ -68,10 +71,9 @@ class ConnectionManager:
                 if self._async_limiter is not None:
                     await self._async_limiter.acquire()
 
-                async with self._session.request(method, url, params=params) as response:
+                async with self._semaphore, self._session.request(method, url, params=params) as response:
                     logger.info("Request sent:")
-                    safe_url = re.sub(r'[?&]api_key=[^&]*', '', str(response.url))
-                    logger.info(safe_url)
+                    logger.info(self._redact_api_key(str(response.url)))
                     if response.status >= 400:
                         error_text = await response.text()
                         error_data = {}
@@ -98,10 +100,16 @@ class ConnectionManager:
                 if attempt == self.retry_attempts:
                     break
                 delay = self.delay_s * attempt
+                safe_url = self._redact_api_key(str(URL(url).with_query(params)))
                 logger.warning(
-                    "Request failed (attempt %d/%d), retrying in %.1fs: %s", attempt, self.retry_attempts, delay, exc
+                    f"Request failed (attempt {attempt}/{self.retry_attempts}), "
+                    f"retrying in {delay:.1f}s: {safe_url}: {exc}"
                 )
                 await asyncio.sleep(delay)
 
-        logger.error("Request failed after %d attempts: %s", self.retry_attempts, url)
+        logger.error(f"Request failed after {self.retry_attempts} attempts: {url}")
         raise RequestException("Request failed after retries") from last_error
+
+    @staticmethod
+    def _redact_api_key(full_url: str) -> str:
+        return re.sub(r"[?&]api_key=[^&]*", "", full_url)
