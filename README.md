@@ -113,13 +113,13 @@ retrieve all data for a list of PMIDs is shaped by several parameters:
 The synchronous approach (issuing requests one at a time in a loop) took approximately **311 seconds** to retrieve data
 for 88 PMIDs (one of which intentionally triggers an error, to check that failures are handled correctly).
 
-The asynchronous approach — built on `asyncio`, a fixed-delay rate-limiting strategy, and a semaphore bounding
-concurrent requests — reduced this to approximately **45.09 ± 5.95 seconds** (mean ± standard deviation over 10 runs),
+The asynchronous approach built on `asyncio`, a fixed-delay rate-limiting strategy, and a semaphore bounding
+concurrent requests reduced this to approximately **45.09 ± 5.95 seconds** (mean ± standard deviation over 10 runs),
 roughly a **6.9x speedup**.
 
 The original plan was to build a benchmark with a grid search over these parameters to find the fastest configuration
-for fetching 88 PMIDs. However, factors outside our control — internet connection stability and NCBI server response
-times — mean that timing results can vary a lot between runs regardless of the parameters used: across 10 runs with
+for fetching 88 PMIDs. However, factors outside our control internet connection stability and NCBI server response
+times mean that timing results can vary a lot between runs regardless of the parameters used: across 10 runs with
 *no* change in parameters, the timings still varied by about ~13 seconds. This makes it unreliable to draw
 conclusions about the best parameters.
 
